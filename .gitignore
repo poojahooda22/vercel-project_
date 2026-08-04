@@ -1,0 +1,20 @@
+# Secrets — never commit. R2/S3 credentials live here.
+.env
+.env.*
+!.env.example
+
+# Agent workspace
+.claude/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Runtime data: cloned repos and build artifacts per deployment
+output/
+
+# Logs
+*.log
+npm-debug.log*
