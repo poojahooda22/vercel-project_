@@ -1,0 +1,92 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+}
+
+.mark {
+  align-self: flex-start;
+  width: 22px;
+  height: 22px;
+}
+
+.card {
+  width: 100%;
+  max-width: 320px;
+  margin-top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heading {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: var(--rare-font-display-xs);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--rare-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A rule on each side of the label. The pseudo-elements flex to fill whatever
+   space the centred text leaves, so it stays centred at any card width. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rare-border);
+}
+
+.dividerLabel {
+  font-size: var(--rare-font-text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--rare-text-secondary);
+  user-select: none;
+}
+
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer {
+  margin-top: 12px;
+  text-align: center;
+  font-size: var(--rare-font-text-sm);
+  color: var(--rare-text-secondary);
+}
+
+.link {
+  color: var(--rare-text-brand-tertiary);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.error {
+  padding: 10px 12px;
+  border: 1px solid var(--rare-border-error);
+  background: var(--rare-bg-error);
+  color: var(--rare-text-error);
+  border-radius: var(--rare-radius-md);
+  font-size: var(--rare-font-text-sm);
+}

@@ -1,0 +1,25 @@
+.input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--rare-bg-secondary);
+  color: var(--rare-text);
+  border: 1px solid var(--rare-border);
+  border-radius: var(--rare-radius-md);
+  font-size: var(--rare-font-text-sm);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.input::placeholder {
+  color: var(--rare-text-placeholder);
+}
+
+.input:focus {
+  border-color: var(--rare-border-brand);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--rare-border-error);
+}

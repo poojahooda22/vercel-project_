@@ -1,0 +1,798 @@
+:root {
+  /* ================================================================ */
+  /*  Primitive Color Scales                                           */
+  /*  Convention: --rare-{palette}-{step}                              */
+  /*  These are raw values — never themed. Semantic tokens reference   */
+  /*  these via var(--rare-{palette}-{step}).                          */
+  /* ================================================================ */
+
+  --rare-gray-dark-alpha-25: rgba(255, 255, 255, 0.98);
+  --rare-gray-dark-alpha-50: rgba(255, 255, 255, 0.96);
+  --rare-gray-dark-alpha-100: rgba(255, 255, 255, 0.94);
+  --rare-gray-dark-alpha-200: rgba(255, 255, 255, 0.92);
+  --rare-gray-dark-alpha-300: rgba(255, 255, 255, 0.8);
+  --rare-gray-dark-alpha-400: rgba(255, 255, 255, 0.56);
+  --rare-gray-dark-alpha-500: rgba(255, 255, 255, 0.5);
+  --rare-gray-dark-alpha-600: rgba(255, 255, 255, 0.35);
+  --rare-gray-dark-alpha-700: rgba(255, 255, 255, 0.16);
+  --rare-gray-dark-alpha-800: rgba(255, 255, 255, 0.08);
+  --rare-gray-dark-alpha-900: rgba(255, 255, 255, 0.04);
+  --rare-gray-dark-alpha-950: rgba(255, 255, 255, 0);
+
+  --rare-brand-25: #f5f8ff;
+  --rare-brand-50: #eff4ff;
+  --rare-brand-100: #d1e0ff;
+  --rare-brand-200: #b2ccff;
+  --rare-brand-300: #84adff;
+  --rare-brand-400: #528bff;
+  --rare-brand-500: #2970ff;
+  --rare-brand-600: #155eef;
+  --rare-brand-700: #004eeb;
+  --rare-brand-800: #0040c1;
+  --rare-brand-900: #00359e;
+  --rare-brand-950: #002266;
+
+  --rare-error-25: #fffbfa;
+  --rare-error-50: #fef3f2;
+  --rare-error-100: #fee4e2;
+  --rare-error-200: #fecdca;
+  --rare-error-300: #fda29b;
+  --rare-error-400: #f97066;
+  --rare-error-500: #f04438;
+  --rare-error-600: #d92d20;
+  --rare-error-700: #b42318;
+  --rare-error-800: #912018;
+  --rare-error-900: #7a271a;
+  --rare-error-950: #55160c;
+
+  --rare-white: #ffffff;
+  --rare-black: #000000;
+
+  --rare-warning-25: #fffcf5;
+  --rare-warning-50: #fffaeb;
+  --rare-warning-100: #fef0c7;
+  --rare-warning-200: #fedf89;
+  --rare-warning-300: #fec84b;
+  --rare-warning-400: #fdb022;
+  --rare-warning-500: #f79009;
+  --rare-warning-600: #dc6803;
+  --rare-warning-700: #b54708;
+  --rare-warning-800: #93370d;
+  --rare-warning-900: #7a2e0e;
+  --rare-warning-950: #4e1d09;
+
+  --rare-success-25: #f6fef9;
+  --rare-success-50: #ecfdf3;
+  --rare-success-100: #dcfae6;
+  --rare-success-200: #abefc6;
+  --rare-success-300: #75e0a7;
+  --rare-success-400: #47cd89;
+  --rare-success-500: #17b26a;
+  --rare-success-600: #079455;
+  --rare-success-700: #067647;
+  --rare-success-800: #085d3a;
+  --rare-success-900: #074d31;
+  --rare-success-950: #053321;
+
+  --rare-gray-neutral-25: #fcfcfd;
+  --rare-gray-neutral-50: #f9fafb;
+  --rare-gray-neutral-100: #f3f4f6;
+  --rare-gray-neutral-200: #e5e7eb;
+  --rare-gray-neutral-300: #d2d6db;
+  --rare-gray-neutral-400: #9da4ae;
+  --rare-gray-neutral-500: #6c737f;
+  --rare-gray-neutral-600: #4d5761;
+  --rare-gray-neutral-700: #384250;
+  --rare-gray-neutral-800: #1f2a37;
+  --rare-gray-neutral-900: #111927;
+  --rare-gray-neutral-950: #0d121c;
+
+  --rare-gray-iron-25: #fafafc;
+  --rare-gray-iron-50: #f2f3f5;
+  --rare-gray-iron-100: #dcdce0;
+  --rare-gray-iron-200: #bebec2;
+  --rare-gray-iron-300: #a5a5a8;
+  --rare-gray-iron-400: #7f8085;
+  --rare-gray-iron-500: #6c6c70;
+  --rare-gray-iron-600: #535357;
+  --rare-gray-iron-700: #3e3f42;
+  --rare-gray-iron-800: #2b2b2e;
+  --rare-gray-iron-900: #1d1d1f;
+  --rare-gray-iron-950: #131314;
+
+  --rare-gray-true-25: #fcfcfc;
+  --rare-gray-true-50: #fafafa;
+  --rare-gray-true-100: #f5f5f5;
+  --rare-gray-true-200: #e5e5e5;
+  --rare-gray-true-300: #d6d6d6;
+  --rare-gray-true-400: #a3a3a3;
+  --rare-gray-true-500: #737373;
+  --rare-gray-true-600: #525252;
+  --rare-gray-true-700: #424242;
+  --rare-gray-true-800: #292929;
+  --rare-gray-true-900: #141414;
+  --rare-gray-true-950: #0f0f0f;
+
+  --rare-moss-25: #fafdf7;
+  --rare-moss-50: #f5fbee;
+  --rare-moss-100: #e6f4d7;
+  --rare-moss-200: #ceeab0;
+  --rare-moss-300: #acdc79;
+  --rare-moss-400: #86cb3c;
+  --rare-moss-500: #669f2a;
+  --rare-moss-600: #4f7a21;
+  --rare-moss-700: #3f621a;
+  --rare-moss-800: #335015;
+  --rare-moss-900: #2b4212;
+  --rare-moss-950: #1a280b;
+
+  --rare-green-light-25: #fafef5;
+  --rare-green-light-50: #f3fee7;
+  --rare-green-light-100: #e3fbcc;
+  --rare-green-light-200: #d0f8ab;
+  --rare-green-light-300: #a6ef67;
+  --rare-green-light-400: #85e13a;
+  --rare-green-light-500: #66c61c;
+  --rare-green-light-600: #4ca30d;
+  --rare-green-light-700: #3b7c0f;
+  --rare-green-light-800: #326212;
+  --rare-green-light-900: #2b5314;
+  --rare-green-light-950: #15290a;
+
+  --rare-green-25: #f6fef9;
+  --rare-green-50: #edfcf2;
+  --rare-green-100: #d3f8df;
+  --rare-green-200: #aaf0c4;
+  --rare-green-300: #73e2a3;
+  --rare-green-400: #3ccb7f;
+  --rare-green-500: #16b364;
+  --rare-green-600: #099250;
+  --rare-green-700: #087443;
+  --rare-green-800: #095c37;
+  --rare-green-900: #084c2e;
+  --rare-green-950: #052e1c;
+
+  --rare-teal-25: #f6fefc;
+  --rare-teal-50: #f0fdf9;
+  --rare-teal-100: #ccfbef;
+  --rare-teal-200: #99f6e0;
+  --rare-teal-300: #5fe9d0;
+  --rare-teal-400: #2ed3b7;
+  --rare-teal-500: #15b79e;
+  --rare-teal-600: #0e9384;
+  --rare-teal-700: #107569;
+  --rare-teal-800: #125d56;
+  --rare-teal-900: #134e48;
+  --rare-teal-950: #0a2926;
+
+  --rare-cyan-25: #f5feff;
+  --rare-cyan-50: #ecfdff;
+  --rare-cyan-100: #cff9fe;
+  --rare-cyan-200: #a5f0fc;
+  --rare-cyan-300: #67e3f9;
+  --rare-cyan-400: #22ccee;
+  --rare-cyan-500: #06aed4;
+  --rare-cyan-600: #088ab2;
+  --rare-cyan-700: #0e7090;
+  --rare-cyan-800: #155b75;
+  --rare-cyan-900: #164c63;
+  --rare-cyan-950: #0d2d3a;
+
+  --rare-blue-light-25: #f5fbff;
+  --rare-blue-light-50: #f0f9ff;
+  --rare-blue-light-100: #e0f2fe;
+  --rare-blue-light-200: #b9e6fe;
+  --rare-blue-light-300: #7cd4fd;
+  --rare-blue-light-400: #36bffa;
+  --rare-blue-light-500: #0ba5ec;
+  --rare-blue-light-600: #0086c9;
+  --rare-blue-light-700: #026aa2;
+  --rare-blue-light-800: #065986;
+  --rare-blue-light-900: #0b4a6f;
+  --rare-blue-light-950: #062c41;
+
+  --rare-blue-25: #f5faff;
+  --rare-blue-50: #eff8ff;
+  --rare-blue-100: #d1e9ff;
+  --rare-blue-200: #b2ddff;
+  --rare-blue-300: #84caff;
+  --rare-blue-400: #53b1fd;
+  --rare-blue-500: #2e90fa;
+  --rare-blue-600: #1570ef;
+  --rare-blue-700: #175cd3;
+  --rare-blue-800: #1849a9;
+  --rare-blue-900: #194185;
+  --rare-blue-950: #102a56;
+
+  --rare-blue-dark-25: #f5f8ff;
+  --rare-blue-dark-50: #eff4ff;
+  --rare-blue-dark-100: #d1e0ff;
+  --rare-blue-dark-200: #b2ccff;
+  --rare-blue-dark-300: #84adff;
+  --rare-blue-dark-400: #528bff;
+  --rare-blue-dark-500: #2970ff;
+  --rare-blue-dark-600: #155eef;
+  --rare-blue-dark-700: #004eeb;
+  --rare-blue-dark-800: #0040c1;
+  --rare-blue-dark-900: #00359e;
+  --rare-blue-dark-950: #002266;
+
+  --rare-indigo-25: #f5f8ff;
+  --rare-indigo-50: #eef4ff;
+  --rare-indigo-100: #e0eaff;
+  --rare-indigo-200: #c7d7fe;
+  --rare-indigo-300: #a4bcfd;
+  --rare-indigo-400: #8098f9;
+  --rare-indigo-500: #6172f3;
+  --rare-indigo-600: #444ce7;
+  --rare-indigo-700: #3538cd;
+  --rare-indigo-800: #2d31a6;
+  --rare-indigo-900: #2d3282;
+  --rare-indigo-950: #1f235b;
+
+  --rare-violet-25: #fbfaff;
+  --rare-violet-50: #f5f3ff;
+  --rare-violet-100: #ece9fe;
+  --rare-violet-200: #ddd6fe;
+  --rare-violet-300: #c3b5fd;
+  --rare-violet-400: #a48afb;
+  --rare-violet-500: #875bf7;
+  --rare-violet-600: #7839ee;
+  --rare-violet-700: #6927da;
+  --rare-violet-800: #5720b7;
+  --rare-violet-900: #491c96;
+  --rare-violet-950: #2e125e;
+
+  --rare-fuchsia-25: #fefaff;
+  --rare-fuchsia-50: #fdf4ff;
+  --rare-fuchsia-100: #fbe8ff;
+  --rare-fuchsia-200: #f6d0fe;
+  --rare-fuchsia-300: #eeaafd;
+  --rare-fuchsia-400: #e478fa;
+  --rare-fuchsia-500: #d444f1;
+  --rare-fuchsia-600: #ba24d5;
+  --rare-fuchsia-700: #9f1ab1;
+  --rare-fuchsia-800: #821890;
+  --rare-fuchsia-900: #6f1877;
+  --rare-fuchsia-950: #47104c;
+
+  --rare-pink-25: #fef6fb;
+  --rare-pink-50: #fdf2fa;
+  --rare-pink-100: #fce7f6;
+  --rare-pink-200: #fcceee;
+  --rare-pink-300: #faa7e0;
+  --rare-pink-400: #f670c7;
+  --rare-pink-500: #ee46bc;
+  --rare-pink-600: #dd2590;
+  --rare-pink-700: #c11574;
+  --rare-pink-800: #9e165f;
+  --rare-pink-900: #851651;
+  --rare-pink-950: #4e0d30;
+
+  --rare-ros-25: #fff5f6;
+  --rare-ros-50: #fff1f3;
+  --rare-ros-100: #ffe4e8;
+  --rare-ros-200: #fecdd6;
+  --rare-ros-300: #fea3b4;
+  --rare-ros-400: #fd6f8e;
+  --rare-ros-500: #f63d68;
+  --rare-ros-600: #e31b54;
+  --rare-ros-700: #c01048;
+  --rare-ros-800: #a11043;
+  --rare-ros-900: #89123e;
+  --rare-ros-950: #510b24;
+
+  --rare-purple-25: #fafaff;
+  --rare-purple-50: #f4f3ff;
+  --rare-purple-100: #ebe9fe;
+  --rare-purple-200: #d9d6fe;
+  --rare-purple-300: #bdb4fe;
+  --rare-purple-400: #9b8afb;
+  --rare-purple-500: #7a5af8;
+  --rare-purple-600: #6938ef;
+  --rare-purple-700: #5925dc;
+  --rare-purple-800: #4a1fb8;
+  --rare-purple-900: #3e1c96;
+  --rare-purple-950: #27115f;
+
+  --rare-orange-dark-25: #fff9f5;
+  --rare-orange-dark-50: #fff4ed;
+  --rare-orange-dark-100: #ffe6d5;
+  --rare-orange-dark-200: #ffd6ae;
+  --rare-orange-dark-300: #ff9c66;
+  --rare-orange-dark-400: #ff692e;
+  --rare-orange-dark-500: #ff4405;
+  --rare-orange-dark-600: #e62e05;
+  --rare-orange-dark-700: #bc1b06;
+  --rare-orange-dark-800: #97180c;
+  --rare-orange-dark-900: #771a0d;
+  --rare-orange-dark-950: #57130a;
+
+  --rare-orange-25: #fefaf5;
+  --rare-orange-50: #fef6ee;
+  --rare-orange-100: #fdead7;
+  --rare-orange-200: #f9dbaf;
+  --rare-orange-300: #f7b27a;
+  --rare-orange-400: #f38744;
+  --rare-orange-500: #ef6820;
+  --rare-orange-600: #e04f16;
+  --rare-orange-700: #b93815;
+  --rare-orange-800: #932f19;
+  --rare-orange-900: #772917;
+  --rare-orange-950: #511c10;
+
+  --rare-yellow-25: #fefdf0;
+  --rare-yellow-50: #fefbe8;
+  --rare-yellow-100: #fef7c3;
+  --rare-yellow-200: #feee95;
+  --rare-yellow-300: #fde272;
+  --rare-yellow-400: #fac515;
+  --rare-yellow-500: #eaaa08;
+  --rare-yellow-600: #ca8504;
+  --rare-yellow-700: #a15c07;
+  --rare-yellow-800: #854a0e;
+  --rare-yellow-900: #713b12;
+  --rare-yellow-950: #542c0d;
+
+  /* ================================================================ */
+  /*  Semantic Tokens – Light mode (default)                           */
+  /*  Source: Figma variables — Gray iron palette                      */
+  /* ================================================================ */
+
+  /* ── FG (icon / decorative) ─────────────────────────────────────── */
+  --rare-fg: var(--rare-gray-iron-900);
+  --rare-fg-secondary: var(--rare-gray-iron-700);
+  --rare-fg-secondary-hover: var(--rare-gray-iron-800);
+  --rare-fg-tertiary: var(--rare-gray-iron-600);
+  --rare-fg-tertiary-hover: var(--rare-gray-iron-700);
+  --rare-fg-muted: var(--rare-gray-iron-500);
+  --rare-fg-muted-hover: var(--rare-gray-iron-600);
+  --rare-fg-subtle: var(--rare-gray-iron-400);
+  --rare-fg-subtle-hover: var(--rare-gray-iron-500);
+  --rare-fg-faint: var(--rare-gray-iron-300);
+  --rare-fg-white: #ffffff;
+  --rare-fg-disabled: var(--rare-gray-iron-400);
+  --rare-fg-disabled-subtle: var(--rare-gray-iron-300);
+  --rare-fg-brand: var(--rare-brand-600);
+  --rare-fg-brand-alt: var(--rare-brand-600);
+  --rare-fg-brand-secondary: var(--rare-brand-500);
+  --rare-fg-error: var(--rare-error-600);
+  --rare-fg-error-secondary: var(--rare-error-500);
+  --rare-fg-warning: var(--rare-warning-600);
+  --rare-fg-warning-secondary: var(--rare-warning-500);
+  --rare-fg-success: var(--rare-success-600);
+  --rare-fg-success-secondary: var(--rare-success-500);
+
+  /* ── Background ─────────────────────────────────────────────────── */
+  --rare-bg: #ffffff;
+  --rare-bg-alt: #ffffff;
+  --rare-bg-hover: var(--rare-gray-iron-50);
+  --rare-bg-solid: var(--rare-gray-iron-950);
+  --rare-bg-secondary: var(--rare-gray-iron-50);
+  --rare-bg-secondary-alt: var(--rare-gray-iron-50);
+  --rare-bg-secondary-hover: var(--rare-gray-iron-100);
+  --rare-bg-secondary-subtle: var(--rare-gray-iron-25);
+  --rare-bg-secondary-solid: var(--rare-gray-iron-600);
+  --rare-bg-tertiary: var(--rare-gray-iron-100);
+  --rare-bg-quaternary: var(--rare-gray-iron-200);
+  --rare-bg-active: var(--rare-gray-iron-100);
+  --rare-bg-active-hover: #eaeaea;
+  --rare-bg-disabled: var(--rare-gray-iron-100);
+  --rare-bg-disabled-subtle: var(--rare-gray-iron-50);
+  --rare-bg-overlay: var(--rare-gray-iron-950);
+  --rare-bg-brand: var(--rare-brand-50);
+  --rare-bg-brand-alt: var(--rare-brand-50);
+  --rare-bg-brand-secondary: var(--rare-brand-100);
+  --rare-bg-brand-secondary-alt: var(--rare-brand-100);
+  --rare-bg-brand-solid: var(--rare-brand-600);
+  --rare-bg-brand-solid-hover: var(--rare-brand-700);
+  --rare-bg-brand-section: var(--rare-brand-800);
+  --rare-bg-brand-section-subtle: var(--rare-brand-700);
+  --rare-bg-error: var(--rare-error-50);
+  --rare-bg-error-secondary: var(--rare-error-100);
+  --rare-bg-error-solid: var(--rare-error-600);
+  --rare-bg-error-solid-hover: var(--rare-error-700);
+  --rare-bg-warning: var(--rare-warning-50);
+  --rare-bg-warning-secondary: var(--rare-warning-100);
+  --rare-bg-warning-solid: var(--rare-warning-600);
+  --rare-bg-warning-solid-hover: var(--rare-warning-700);
+  --rare-bg-success: var(--rare-success-50);
+  --rare-bg-success-secondary: var(--rare-success-100);
+  --rare-bg-success-solid: var(--rare-success-600);
+  --rare-bg-success-solid-hover: var(--rare-success-700);
+
+  /* ── Border ─────────────────────────────────────────────────────── */
+  --rare-border: var(--rare-gray-iron-300);
+  --rare-border-secondary: var(--rare-gray-iron-200);
+  --rare-border-tertiary: var(--rare-gray-iron-100);
+  --rare-border-disabled: var(--rare-gray-iron-300);
+  --rare-border-disabled-subtle: var(--rare-gray-iron-200);
+  --rare-border-brand: var(--rare-brand-300);
+  --rare-border-brand-solid: var(--rare-brand-600);
+  --rare-border-brand-solid-alt: var(--rare-brand-600);
+  --rare-border-error: var(--rare-error-300);
+  --rare-border-error-solid: var(--rare-error-600);
+  --rare-border-warning: var(--rare-warning-200);
+  --rare-border-warning-solid: var(--rare-warning-600);
+  --rare-border-success: var(--rare-success-200);
+  --rare-border-success-solid: var(--rare-success-600);
+
+  /* ── Text (typography) ──────────────────────────────────────────── */
+  --rare-text: var(--rare-gray-iron-900);
+  --rare-text-on-brand: #ffffff;
+  --rare-text-secondary: var(--rare-gray-iron-700);
+  --rare-text-secondary-hover: var(--rare-gray-iron-800);
+  --rare-text-secondary-on-brand: var(--rare-brand-200);
+  --rare-text-tertiary: var(--rare-gray-iron-600);
+  --rare-text-tertiary-hover: var(--rare-gray-iron-700);
+  --rare-text-tertiary-on-brand: var(--rare-brand-200);
+  --rare-text-muted: var(--rare-gray-iron-500);
+  --rare-text-muted-on-brand: var(--rare-brand-300);
+  --rare-text-white: #ffffff;
+  --rare-text-disabled: var(--rare-gray-iron-500);
+  --rare-text-disabled-subtle: var(--rare-gray-iron-500);
+  --rare-text-placeholder: var(--rare-gray-iron-500);
+  --rare-text-placeholder-subtle: var(--rare-gray-iron-300);
+  --rare-text-brand-dark: var(--rare-brand-900);
+  --rare-text-brand: var(--rare-brand-700);
+  --rare-text-brand-secondary: var(--rare-brand-700);
+  --rare-text-brand-tertiary: var(--rare-brand-600);
+  --rare-text-brand-tertiary-alt: var(--rare-brand-600);
+  --rare-text-error: var(--rare-error-600);
+  --rare-text-error-dark: var(--rare-error-700);
+  --rare-text-warning: var(--rare-warning-600);
+  --rare-text-warning-dark: var(--rare-warning-700);
+  --rare-text-success: var(--rare-success-600);
+  --rare-text-success-dark: var(--rare-success-700);
+
+  /* ── Spacing ────────────────────────────────────────────────────── */
+  --rare-spacing-xxs: 2px;
+  --rare-spacing-xs: 4px;
+  --rare-spacing-sm: 6px;
+  --rare-spacing-md: 8px;
+  --rare-spacing-lg: 10px;
+  --rare-spacing-xl: 12px;
+  --rare-spacing-2xl: 16px;
+  --rare-spacing-3xl: 20px;
+  --rare-spacing-4xl: 24px;
+  --rare-spacing-5xl: 32px;
+  --rare-spacing-6xl: 36px;
+  --rare-spacing-7xl: 40px;
+  --rare-spacing-8xl: 48px;
+  --rare-spacing-9xl: 52px;
+  --rare-spacing-10xl: 60px;
+  --rare-spacing-11xl: 64px;
+  --rare-spacing-12xl: 80px;
+  --rare-spacing-13xl: 96px;
+  --rare-spacing-14xl: 128px;
+  --rare-spacing-15xl: 160px;
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+  /* Display sizes */
+  --rare-font-display-2xl: 72px;
+  --rare-line-height-display-2xl: 90px;
+  --rare-tracking-display-2xl: -1.44px;
+
+  --rare-font-display-xl: 60px;
+  --rare-line-height-display-xl: 72px;
+  --rare-tracking-display-xl: -1.2px;
+
+  --rare-font-display-lg: 48px;
+  --rare-line-height-display-lg: 60px;
+  --rare-tracking-display-lg: -0.96px;
+
+  --rare-font-display-md: 36px;
+  --rare-line-height-display-md: 44px;
+  --rare-tracking-display-md: -0.72px;
+
+  --rare-font-display-sm: 30px;
+  --rare-line-height-display-sm: 38px;
+
+  --rare-font-display-xs: 24px;
+  --rare-line-height-display-xs: 32px;
+
+  /* Text sizes */
+  --rare-font-text-xl: 20px;
+  --rare-line-height-text-xl: 30px;
+
+  --rare-font-text-lg: 18px;
+  --rare-line-height-text-lg: 28px;
+
+  --rare-font-text-md: 16px;
+  --rare-line-height-text-md: 24px;
+
+  --rare-font-text-sm: 14px;
+  --rare-line-height-text-sm: 20px;
+
+  --rare-font-text-xs: 12px;
+  --rare-line-height-text-xs: 18px;
+
+  --rare-font-text-xxs: 10px;
+  --rare-line-height-text-xxs: 15px;
+
+  /* ── Shadows (7 tiers) ──────────────────────────────────────────── */
+  --rare-shadow-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --rare-shadow-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.10), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --rare-shadow-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.10), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --rare-shadow-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --rare-shadow-xl: 0px 20px 24px -4px rgba(16, 24, 40, 0.08), 0px 8px 8px -4px rgba(16, 24, 40, 0.03);
+  --rare-shadow-2xl: 0px 24px 48px -12px rgba(16, 24, 40, 0.18);
+  --rare-shadow-3xl: 0px 32px 64px -12px rgba(16, 24, 40, 0.14);
+
+  /* ── Focus (2px indicator, no elevation) ─────────────────────────── */
+  --rare-focus-ring-brand: 0 0 0 2px rgba(41, 112, 255, 0.24);
+  --rare-focus-ring-gray: 0 0 0 2px rgba(152, 162, 179, 0.14);
+  --rare-focus-ring-gray-secondary: 0 0 0 2px rgba(152, 162, 179, 0.20);
+  --rare-focus-ring-error: 0 0 0 2px rgba(240, 68, 56, 0.24);
+
+  /* ── Widths ─────────────────────────────────────────────────────── */
+  --rare-width-3xs: 256px;
+  --rare-width-2xs: 320px;
+  --rare-width-xs: 384px;
+  --rare-width-sm: 480px;
+  --rare-width-md: 560px;
+  --rare-width-lg: 640px;
+  --rare-width-xl: 768px;
+  --rare-width-2xl: 1024px;
+  --rare-width-3xl: 1280px;
+  --rare-width-4xl: 1440px;
+  --rare-width-5xl: 1600px;
+  --rare-width-6xl: 1920px;
+
+  /* ── Radius ─────────────────────────────────────────────────────── */
+  --rare-radius-none: 0px;
+  --rare-radius-xxs: 2px;
+  --rare-radius-xs: 4px;
+  --rare-radius-sm: 6px;
+  --rare-radius-md: 8px;
+  --rare-radius-lg: 10px;
+  --rare-radius-xl: 12px;
+  --rare-radius-2xl: 16px;
+  --rare-radius-3xl: 20px;
+  --rare-radius-4xl: 24px;
+  --rare-radius-full: 9999px;
+
+  /* ── Component: Buttons ─────────────────────────────────────────── */
+  /* Monochromatic — button color is desaturated gray-iron, not brand blue. */
+  /* Primary — near-black solid fill */
+  --rare-btn-primary-bg: var(--rare-gray-iron-900);
+  --rare-btn-primary-border: var(--rare-gray-iron-900);
+  --rare-btn-primary-fg: #ffffff;
+  --rare-btn-primary-bg-hover: var(--rare-gray-iron-800);
+  --rare-btn-primary-border-hover: var(--rare-gray-iron-800);
+  --rare-btn-primary-fg-hover: #ffffff;
+
+  /* Secondary Gray */
+  --rare-btn-secondary-bg: #ffffff;
+  --rare-btn-secondary-border: var(--rare-gray-iron-300);
+  --rare-btn-secondary-fg: var(--rare-gray-iron-700);
+  --rare-btn-secondary-bg-hover: var(--rare-gray-iron-50);
+  --rare-btn-secondary-border-hover: var(--rare-gray-iron-300);
+  --rare-btn-secondary-fg-hover: var(--rare-gray-iron-800);
+
+  /* Secondary Color — monochromatic (was brand) */
+  --rare-btn-secondary-color-bg: #ffffff;
+  --rare-btn-secondary-color-border: var(--rare-gray-iron-300);
+  --rare-btn-secondary-color-fg: var(--rare-gray-iron-800);
+  --rare-btn-secondary-color-bg-hover: var(--rare-gray-iron-50);
+  --rare-btn-secondary-color-border-hover: var(--rare-gray-iron-400);
+  --rare-btn-secondary-color-fg-hover: var(--rare-gray-iron-900);
+
+  /* Tertiary Gray */
+  --rare-btn-tertiary-fg: var(--rare-gray-iron-600);
+  --rare-btn-tertiary-bg-hover: var(--rare-gray-iron-50);
+  --rare-btn-tertiary-fg-hover: var(--rare-gray-iron-700);
+
+  /* Tertiary Color — monochromatic (was brand) */
+  --rare-btn-tertiary-color-fg: var(--rare-gray-iron-800);
+  --rare-btn-tertiary-color-fg-hover: var(--rare-gray-iron-900);
+  --rare-btn-tertiary-color-bg-hover: var(--rare-gray-iron-50);
+
+  /* ── Component: Tabs ────────────────────────────────────────────── */
+  --rare-tab-active-bg: var(--rare-bg);
+
+  /* ── Component: Tooltip ──────────────────────────────────────────── */
+  --rare-tooltip-bg: var(--rare-gray-iron-900);
+  --rare-tooltip-text: var(--rare-gray-iron-50);
+
+  /* ── Component: Charts — Activity scale ─────────────────────────── */
+  --rare-chart-bg-1: var(--rare-brand-100);
+  --rare-chart-bg-2: var(--rare-brand-200);
+  --rare-chart-bg-3: var(--rare-brand-400);
+  --rare-chart-bg-4: var(--rare-brand-600);
+
+  /* ── Component: Alert / Toast colored cards ───────────────────── */
+  --rare-alert-brand-bg: var(--rare-brand-50);
+  --rare-alert-brand-border: var(--rare-brand-300);
+  --rare-alert-error-bg: var(--rare-error-50);
+  --rare-alert-error-border: var(--rare-error-300);
+  --rare-alert-warning-bg: var(--rare-warning-50);
+  --rare-alert-warning-border: var(--rare-warning-300);
+  --rare-alert-success-bg: var(--rare-success-50);
+  --rare-alert-success-border: var(--rare-success-300);
+
+  /* ── Animation — Duration ─────────────────────────────────────── */
+  --rare-duration-fast: 150ms;
+  --rare-duration-normal: 300ms;
+  --rare-duration-slow: 500ms;
+  --rare-duration-slower: 700ms;
+
+  /* ── Animation — Easing ───────────────────────────────────────── */
+  --rare-easing-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --rare-easing-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --rare-easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ================================================================== */
+/*  Dark mode override                                                  */
+/*  Apply via <html data-theme="dark"> or toggle the attribute          */
+/* ================================================================== */
+[data-theme="dark"] {
+  /* ── FG (icon / decorative) ─────────────────────────────────────── */
+  --rare-fg: #ffffff;
+  --rare-fg-secondary: var(--rare-gray-iron-300);
+  --rare-fg-secondary-hover: var(--rare-gray-iron-200);
+  --rare-fg-tertiary: var(--rare-gray-iron-400);
+  --rare-fg-tertiary-hover: var(--rare-gray-iron-300);
+  --rare-fg-muted: var(--rare-gray-iron-400);
+  --rare-fg-muted-hover: var(--rare-gray-iron-300);
+  --rare-fg-subtle: var(--rare-gray-iron-500);
+  --rare-fg-subtle-hover: var(--rare-gray-iron-400);
+  --rare-fg-faint: var(--rare-gray-iron-600);
+  --rare-fg-disabled: var(--rare-gray-iron-500);
+  --rare-fg-disabled-subtle: var(--rare-gray-iron-600);
+  --rare-fg-brand: var(--rare-brand-500);
+  --rare-fg-brand-alt: var(--rare-gray-iron-300);
+  --rare-fg-brand-secondary: var(--rare-brand-500);
+  --rare-fg-error: var(--rare-error-500);
+  --rare-fg-error-secondary: var(--rare-error-400);
+  --rare-fg-warning: var(--rare-warning-500);
+  --rare-fg-warning-secondary: var(--rare-warning-400);
+  --rare-fg-success: var(--rare-success-500);
+  --rare-fg-success-secondary: var(--rare-success-400);
+
+  /* ── Background ─────────────────────────────────────────────────── */
+  --rare-bg: var(--rare-gray-iron-950);
+  --rare-bg-alt: var(--rare-gray-iron-900);
+  --rare-bg-hover: var(--rare-gray-iron-800);
+  --rare-bg-solid: var(--rare-gray-iron-800);
+  --rare-bg-secondary: var(--rare-gray-iron-900);
+  --rare-bg-secondary-alt: var(--rare-gray-iron-900);
+  --rare-bg-secondary-hover: var(--rare-gray-iron-800);
+  --rare-bg-secondary-subtle: var(--rare-gray-iron-900);
+  --rare-bg-secondary-solid: var(--rare-gray-iron-600);
+  --rare-bg-tertiary: var(--rare-gray-iron-800);
+  --rare-bg-quaternary: var(--rare-gray-iron-700);
+  --rare-bg-active: var(--rare-gray-iron-800);
+  --rare-bg-active-hover: var(--rare-gray-iron-700);
+  --rare-bg-disabled: var(--rare-gray-iron-800);
+  --rare-bg-disabled-subtle: var(--rare-gray-iron-900);
+  --rare-bg-overlay: var(--rare-gray-iron-800);
+  --rare-bg-brand: color-mix(in srgb, var(--rare-brand-950) 30%, transparent);
+  --rare-bg-brand-alt: var(--rare-gray-iron-900);
+  --rare-bg-brand-secondary: color-mix(in srgb, var(--rare-brand-950) 30%, transparent);
+  --rare-bg-brand-secondary-alt: var(--rare-gray-iron-800);
+  --rare-bg-brand-solid: var(--rare-brand-600);
+  --rare-bg-brand-solid-hover: var(--rare-brand-500);
+  --rare-bg-brand-section: var(--rare-gray-iron-900);
+  --rare-bg-brand-section-subtle: var(--rare-gray-iron-900);
+  --rare-bg-error: color-mix(in srgb, var(--rare-error-500) 10%, transparent);
+  --rare-bg-error-secondary: color-mix(in srgb, var(--rare-error-950) 30%, transparent);
+  --rare-bg-error-solid: var(--rare-error-600);
+  --rare-bg-error-solid-hover: var(--rare-error-500);
+  --rare-bg-warning: color-mix(in srgb, var(--rare-warning-500) 10%, transparent);
+  --rare-bg-warning-secondary: color-mix(in srgb, var(--rare-warning-950) 30%, transparent);
+  --rare-bg-warning-solid: var(--rare-warning-600);
+  --rare-bg-warning-solid-hover: var(--rare-warning-500);
+  --rare-bg-success: color-mix(in srgb, var(--rare-success-500) 10%, transparent);
+  --rare-bg-success-secondary: color-mix(in srgb, var(--rare-success-950) 30%, transparent);
+  --rare-bg-success-solid: var(--rare-success-600);
+  --rare-bg-success-solid-hover: var(--rare-success-500);
+
+  /* ── Border ─────────────────────────────────────────────────────── */
+  --rare-border: var(--rare-gray-iron-700);
+  --rare-border-secondary: var(--rare-gray-iron-800);
+  --rare-border-tertiary: var(--rare-gray-iron-800);
+  --rare-border-disabled: var(--rare-gray-iron-700);
+  --rare-border-disabled-subtle: var(--rare-gray-iron-800);
+  --rare-border-brand: var(--rare-brand-400);
+  --rare-border-brand-solid: var(--rare-brand-500);
+  --rare-border-brand-solid-alt: var(--rare-gray-iron-700);
+  --rare-border-error: var(--rare-error-400);
+  --rare-border-error-solid: var(--rare-error-500);
+  --rare-border-warning: var(--rare-warning-800);
+  --rare-border-warning-solid: var(--rare-warning-500);
+  --rare-border-success: var(--rare-success-800);
+  --rare-border-success-solid: var(--rare-success-500);
+
+  /* ── Text (typography) ──────────────────────────────────────────── */
+  --rare-text: var(--rare-gray-iron-50);
+  --rare-text-on-brand: var(--rare-gray-iron-50);
+  --rare-text-secondary: var(--rare-gray-iron-300);
+  --rare-text-secondary-hover: var(--rare-gray-iron-200);
+  --rare-text-secondary-on-brand: var(--rare-gray-iron-300);
+  --rare-text-tertiary: var(--rare-gray-iron-400);
+  --rare-text-tertiary-hover: var(--rare-gray-iron-300);
+  --rare-text-tertiary-on-brand: var(--rare-gray-iron-400);
+  --rare-text-muted: var(--rare-gray-iron-400);
+  --rare-text-muted-on-brand: var(--rare-gray-iron-500);
+  --rare-text-white: #ffffff;
+  --rare-text-disabled: var(--rare-gray-iron-500);
+  --rare-text-disabled-subtle: var(--rare-gray-iron-500);
+  --rare-text-placeholder: var(--rare-gray-iron-500);
+  --rare-text-placeholder-subtle: var(--rare-gray-iron-700);
+  --rare-text-brand-dark: var(--rare-gray-iron-50);
+  --rare-text-brand: var(--rare-gray-iron-300);
+  --rare-text-brand-secondary: var(--rare-gray-iron-300);
+  --rare-text-brand-tertiary: var(--rare-brand-400);
+  --rare-text-brand-tertiary-alt: var(--rare-gray-iron-50);
+  --rare-text-error: var(--rare-error-400);
+  --rare-text-error-dark: var(--rare-error-300);
+  --rare-text-warning: var(--rare-warning-400);
+  --rare-text-success: var(--rare-success-400);
+
+  /* ── Component: Buttons ─────────────────────────────────────────── */
+  /* Monochromatic — button color is desaturated gray-iron, not brand blue. */
+  /* Primary — near-white solid fill on dark (inverted), dark text */
+  --rare-btn-primary-bg: var(--rare-gray-iron-50);
+  --rare-btn-primary-border: var(--rare-gray-iron-50);
+  --rare-btn-primary-fg: var(--rare-gray-iron-900);
+  --rare-btn-primary-bg-hover: #ffffff;
+  --rare-btn-primary-border-hover: #ffffff;
+  --rare-btn-primary-fg-hover: var(--rare-gray-iron-900);
+
+  /* Secondary Gray */
+  --rare-btn-secondary-bg: var(--rare-gray-iron-900);
+  --rare-btn-secondary-border: var(--rare-gray-iron-700);
+  --rare-btn-secondary-fg: var(--rare-gray-iron-200);
+  --rare-btn-secondary-bg-hover: var(--rare-gray-iron-800);
+  --rare-btn-secondary-border-hover: var(--rare-gray-iron-700);
+  --rare-btn-secondary-fg-hover: var(--rare-gray-iron-50);
+
+  /* Secondary Color — monochromatic (was brand) */
+  --rare-btn-secondary-color-bg: var(--rare-gray-iron-900);
+  --rare-btn-secondary-color-border: var(--rare-gray-iron-600);
+  --rare-btn-secondary-color-fg: var(--rare-gray-iron-200);
+  --rare-btn-secondary-color-bg-hover: var(--rare-gray-iron-800);
+  --rare-btn-secondary-color-border-hover: var(--rare-gray-iron-500);
+  --rare-btn-secondary-color-fg-hover: var(--rare-gray-iron-50);
+
+  /* Tertiary Gray */
+  --rare-btn-tertiary-fg: var(--rare-gray-iron-300);
+  --rare-btn-tertiary-bg-hover: var(--rare-gray-iron-800);
+  --rare-btn-tertiary-fg-hover: var(--rare-gray-iron-200);
+
+  /* Tertiary Color — monochromatic (was brand) */
+  --rare-btn-tertiary-color-fg: var(--rare-gray-iron-200);
+  --rare-btn-tertiary-color-fg-hover: var(--rare-gray-iron-50);
+  --rare-btn-tertiary-color-bg-hover: var(--rare-gray-iron-800);
+
+  /* ── Focus (dark overrides) ─────────────────────────────────────── */
+  --rare-focus-ring-brand: 0 0 0 2px rgba(45, 112, 255, 0.35);
+  --rare-focus-ring-gray: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  --rare-focus-ring-gray-secondary: 0 0 0 2px rgba(255, 255, 255, 0.18);
+  --rare-focus-ring-error: 0 0 0 2px rgba(217, 45, 32, 0.35);
+
+  /* ── Component: Tabs ────────────────────────────────────────────── */
+  --rare-tab-active-bg: var(--rare-gray-iron-800);
+
+  /* ── Component: Tooltip ──────────────────────────────────────────── */
+  --rare-tooltip-bg: var(--rare-gray-iron-50);
+  --rare-tooltip-text: var(--rare-gray-iron-900);
+
+  /* ── Component: Charts — Activity scale (dark: grayscale) ───────── */
+  --rare-chart-bg-1: var(--rare-gray-iron-800);
+  --rare-chart-bg-2: var(--rare-gray-iron-600);
+  --rare-chart-bg-3: var(--rare-gray-iron-300);
+  --rare-chart-bg-4: var(--rare-gray-iron-50);
+
+  /* ── Component: Alert / Toast colored cards ───────────────────── */
+  --rare-alert-brand-bg: color-mix(in srgb, var(--rare-brand-500) 10%, transparent);
+  --rare-alert-brand-border: color-mix(in srgb, var(--rare-brand-500) 30%, transparent);
+  --rare-alert-error-bg: color-mix(in srgb, var(--rare-error-500) 10%, transparent);
+  --rare-alert-error-border: color-mix(in srgb, var(--rare-error-500) 30%, transparent);
+  --rare-alert-warning-bg: color-mix(in srgb, var(--rare-warning-500) 10%, transparent);
+  --rare-alert-warning-border: color-mix(in srgb, var(--rare-warning-500) 30%, transparent);
+  --rare-alert-success-bg: color-mix(in srgb, var(--rare-success-500) 10%, transparent);
+  --rare-alert-success-border: color-mix(in srgb, var(--rare-success-500) 30%, transparent);
+}

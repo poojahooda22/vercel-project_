@@ -1,0 +1,51 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--rare-radius-md);
+  font-size: var(--rare-font-text-sm);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  background: var(--rare-bg-disabled);
+  color: var(--rare-text-disabled);
+  border-color: var(--rare-border-disabled);
+}
+
+/* Vercel's login uses an inverted primary: light button on a dark page. */
+.primary {
+  background: var(--rare-text);
+  color: var(--rare-bg);
+  border: 1px solid var(--rare-text);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--rare-text-secondary);
+  border-color: var(--rare-text-secondary);
+}
+
+.secondary {
+  background: var(--rare-bg-secondary);
+  color: var(--rare-text);
+  border: 1px solid var(--rare-border);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--rare-bg-hover);
+}
+
+.icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
