@@ -11,6 +11,10 @@ node_modules/
 
 # Build output
 dist/
+.next/
+
+# Turborepo's local task cache — tarballs of build output, regenerated on demand
+.turbo/
 
 # Runtime data: cloned repos and build artifacts per deployment
 output/
