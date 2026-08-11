@@ -2,10 +2,13 @@
 # not just in hostname: dev is plain http on one machine, this terminates TLS and
 # holds a wildcard certificate.
 #
-# {$DOMAIN} and {$CF_API_TOKEN} are read from the environment at startup, so the
-# same file works for any domain — Phase 7 sets DOMAIN in the server's .env and
-# nothing here changes.
-
+# Both {$DOMAIN} and {env.CF_API_TOKEN} come from the environment, so the same file
+# works for any domain — Phase 7 sets DOMAIN in the server's .env and nothing here
+# changes. The two forms are not interchangeable: {$X} is substituted by the
+# Caddyfile adapter at parse time and {env.X} is resolved at runtime by the module
+# that reads it. Site names must use {$X}, because a site address has to be a literal
+# before the config is loaded; the API token must use {env.X}, so it is not written
+# into the adapted JSON that Caddy persists.
 {
 	# Where Let's Encrypt sends expiry warnings. Worth setting: a wildcard that
 	# quietly fails to renew takes every deployment offline at once.
@@ -16,6 +19,18 @@
 # cross-site handling. Identical arrangement to dev, which is the point — the thing
 # that works locally is the thing that ships.
 app.{$DOMAIN} {
+	# The same DNS-01 issuer the wildcard below uses, stated rather than inferred.
+	#
+	# Without this the site falls back to HTTP-01/TLS-ALPN-01, which need ports 80/443
+	# to arrive unterminated. That works today, but it means the dashboard and the
+	# deployments hold their certificates by two different mechanisms — so the day
+	# this record goes behind a proxy, the dashboard alone loses TLS while every
+	# deployment keeps it, which reads as a bizarre partial outage rather than a
+	# configuration change. One challenge type for both sites has no such failure.
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+
 	# Better Auth is a Next.js route handler at app/api/auth/[...all], so it belongs
 	# to the frontend and the prefix must NOT be stripped. Routing it to the upload
 	# service instead produces an Express 404 that looks exactly like a broken OAuth
@@ -41,8 +56,13 @@ app.{$DOMAIN} {
 # NOT matched here: a wildcard covers one label, so example.com itself is untouched
 # and whatever already serves it — a portfolio on Vercel, say — keeps working.
 *.{$DOMAIN} {
+	# {env.X}, not {$X}. The {$X} form is substituted by the Caddyfile ADAPTER at
+	# parse time, which writes the literal token into the adapted JSON that Caddy
+	# then persists in the caddy-config volume — a secret at rest, in a place nobody
+	# thinks to look. {env.X} stays a placeholder and is resolved at runtime by the
+	# module itself; it is the form the plugin's own README documents.
 	tls {
-		dns cloudflare {$CF_API_TOKEN}
+		dns cloudflare {env.CF_API_TOKEN}
 	}
 	reverse_proxy request-handler:3001
 }

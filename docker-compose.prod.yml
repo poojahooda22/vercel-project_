@@ -121,13 +121,27 @@ services:
       REDIS_URL: redis://redis:6379
       REQUEST_HANDLER_ORIGIN: http://request-handler:3001
       PREVIEW_HOST: ${DOMAIN}
-      # No CHROMIUM_HOST_RESOLVER_RULES here: in production {id}.example.com is a
-      # real wildcard DNS record, so Chromium resolves it the way a visitor does.
-      # The dev override exists only because *.localhost points at the container.
+      # Send Chromium to Caddy directly instead of out through public DNS.
+      #
+      # {id}.${DOMAIN} does resolve publicly, so this looks unnecessary — but taking
+      # that route makes every capture depend on the droplet hairpinning traffic back
+      # to its own public IP, and on the wildcard record never being proxied. Caddy
+      # holds the wildcard certificate, so the http->https redirect still validates
+      # under this mapping.
+      #
+      # The reason it must not be left to chance: a failed capture is caught and
+      # logged by the worker and nothing else. The deployment still goes green, just
+      # with no thumbnail — a failure mode nobody notices for weeks.
+      CHROMIUM_HOST_RESOLVER_RULES: "MAP *.${DOMAIN} caddy"
     depends_on:
       redis:
         condition: service_healthy
       request-handler:
+        condition: service_started
+      # Chromium now reaches deployments through Caddy, so Caddy must be up. The
+      # liveness probe would not catch this: it talks to request-handler directly
+      # over the internal network and would pass while Caddy was still starting.
+      caddy:
         condition: service_started
     # Chromium crashes with "Target closed" on the default 64MB /dev/shm.
     shm_size: 1gb

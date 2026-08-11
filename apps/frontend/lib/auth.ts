@@ -16,8 +16,16 @@ function createAuth() {
     database: new Pool({ connectionString: required("NEON_DB") }),
     secret: required("BETTER_AUTH_SECRET"),
     baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3002",
+    // Sign-up is OAuth-only, deliberately.
+    //
+    // An account on this platform is the ability to make the deploy worker clone an
+    // arbitrary repository and run `npm install` on the host. With email+password
+    // enabled, obtaining one is a single unauthenticated POST — no Google or GitHub
+    // account, nothing to trace, nothing to rate-limit against. Requiring a real
+    // OAuth identity does not sandbox the build; it just stops the cheapest door
+    // being the open one.
     emailAndPassword: {
-      enabled: true,
+      enabled: false,
     },
     socialProviders: {
       github: {

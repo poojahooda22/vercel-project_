@@ -149,6 +149,11 @@ services:
         condition: service_healthy
       request-handler:
         condition: service_started
+      # The resolver rule above sends Chromium through Caddy, so Caddy has to be up.
+      # The liveness probe cannot cover this — it reaches request-handler directly
+      # over the internal network and passes while Caddy is still starting.
+      caddy:
+        condition: service_started
     # Chromium is memory-hungry and /dev/shm defaults to 64MB in a container, which
     # is where "Target closed" crashes come from. Raising it is the supported fix;
     # --disable-dev-shm-usage trades the crash for slower rendering.
