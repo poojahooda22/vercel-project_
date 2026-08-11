@@ -6,9 +6,19 @@
 # pushed to a registry — where deleting it later does not help, because the layer
 # is already published. The reference monorepo this project follows ignores only
 # node_modules, which is exactly how that happens.
-.env
-.env.*
-!.env.example
+#
+# The `**/` prefix is load-bearing, not decoration. A bare `.env` matches ONLY the
+# context root: the five per-app files (apps/frontend/.env, apps/upload-service/.env,
+# …) all sailed straight into the context, and Next's standalone output carried
+# apps/frontend/.env into the frontend image. Verified by listing the context from
+# inside a throwaway build, not by reading this file and assuming.
+#
+# It also cost a green CI: because apps/frontend/.env was present locally, Next
+# auto-loaded it and `next build` succeeded here while failing on a clean checkout.
+# Excluding it is what makes a local build tell the truth about a CI one.
+**/.env
+**/.env.*
+!**/.env.example
 
 # Dependencies: reinstalled inside the image from the pruned lockfile. Copying the
 # host's would also drag in platform-specific binaries built for Windows.
