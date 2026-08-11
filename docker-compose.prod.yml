@@ -1,0 +1,143 @@
+# Production stack for the VPS.
+#
+# The one structural difference from docker-compose.yml: every service uses
+# `image:` instead of `build:`. CI builds and pushes to ghcr; the server only
+# pulls. That is why the box needs neither the source tree nor the CPU and RAM to
+# compile it — a 2-vCPU droplet building five images would take many minutes and
+# compete with the deploy worker for memory.
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Requires a .env on the SERVER (never sent from CI) with the R2, Neon and OAuth
+# secrets plus DOMAIN, ACME_EMAIL and CF_API_TOKEN.
+
+name: vercel-clone
+
+x-registry: &registry ghcr.io/poojahooda22/vercel-clone
+
+services:
+  caddy:
+    image: ghcr.io/poojahooda22/vercel-clone-caddy:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+      # Scoped to DNS:Edit for this zone only. Caddy uses it to write the TXT
+      # record that proves control of the domain for the wildcard certificate.
+      CF_API_TOKEN: ${CF_API_TOKEN}
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      # Certificates live here. Losing this volume means re-issuing on every
+      # restart, which will hit Let's Encrypt's rate limits.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - upload-service
+      - request-handler
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # No published port: nothing outside the compose network should reach Redis.
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/poojahooda22/vercel-clone-frontend:latest
+    environment:
+      NEON_DB: ${NEON_DB}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://app.${DOMAIN}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    restart: unless-stopped
+
+  upload-service:
+    image: ghcr.io/poojahooda22/vercel-clone-upload-service:latest
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_ORIGIN: https://app.${DOMAIN}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  request-handler:
+    image: ghcr.io/poojahooda22/vercel-clone-request-handler:latest
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    restart: unless-stopped
+
+  deploy-service:
+    image: ghcr.io/poojahooda22/vercel-clone-deploy-service:latest
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Runs npm install on repos strangers submit. On a shared 4GB box these limits
+    # are what stop one runaway build taking the whole platform down.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.5"
+    restart: unless-stopped
+
+  screenshot-service:
+    image: ghcr.io/poojahooda22/vercel-clone-screenshot-service:latest
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      REDIS_URL: redis://redis:6379
+      REQUEST_HANDLER_ORIGIN: http://request-handler:3001
+      PREVIEW_HOST: ${DOMAIN}
+      # No CHROMIUM_HOST_RESOLVER_RULES here: in production {id}.example.com is a
+      # real wildcard DNS record, so Chromium resolves it the way a visitor does.
+      # The dev override exists only because *.localhost points at the container.
+    depends_on:
+      redis:
+        condition: service_healthy
+      request-handler:
+        condition: service_started
+    # Chromium crashes with "Target closed" on the default 64MB /dev/shm.
+    shm_size: 1gb
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,164 @@
+# Local development stack. Mirrors production closely enough that the origin model
+# is the same: everything reaches the browser through Caddy on port 80, so the
+# dashboard and the API share an origin and the session cookie works with no
+# cross-site configuration. Running the frontend on :3002 and the API on :3000
+# would need CORS and credentials handling that production does not.
+#
+#   docker compose up --build
+#   dashboard        http://localhost
+#   a deployment     http://<id>.localhost
+#
+# The dashboard is on bare localhost rather than app.localhost because Google's
+# OAuth console refuses any subdomain of localhost as an origin. Production uses
+# app.poojahooda.com, a real domain, where that restriction does not apply.
+#
+# Secrets come from a root .env file, which is gitignored and never enters an
+# image. See .env.example for the variable names.
+
+# Explicit, because compose otherwise derives it from the directory name — and this
+# folder is "vercel-project_", whose trailing underscore is an invalid Docker image
+# reference ("invalid reference format" at startup, not at build).
+name: vercel-clone
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - frontend
+      - upload-service
+      - request-handler
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # appendonly: the queues are the only record that a build is pending. Without
+    # persistence a container restart loses every queued job silently, which is
+    # exactly how four deployments were stranded in 'queued' with no worker coming.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        # Inlined into the client bundle at build time, so they are args, not env.
+        # Same origin as the dashboard: Caddy routes /api/* to the upload service.
+        NEXT_PUBLIC_UPLOAD_SERVICE: /api
+        NEXT_PUBLIC_REQUEST_HANDLER_HOST: localhost
+    environment:
+      NEON_DB: ${NEON_DB}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: http://localhost
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    restart: unless-stopped
+
+  upload-service:
+    build:
+      context: .
+      dockerfile: apps/upload-service/Dockerfile
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      # Service name, not localhost: inside the network each container is its own
+      # host, so "localhost" would point the client at itself.
+      REDIS_URL: redis://redis:6379
+      FRONTEND_ORIGIN: http://localhost
+    depends_on:
+      redis:
+        # Not just "started". The upload service awaits publisher.connect() before
+        # app.listen(), so a Redis that is up-but-not-ready means it never binds.
+        condition: service_healthy
+    restart: unless-stopped
+
+  request-handler:
+    build:
+      context: .
+      dockerfile: apps/request-handler/Dockerfile
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    restart: unless-stopped
+
+  deploy-service:
+    build:
+      context: .
+      dockerfile: apps/deploy-service/Dockerfile
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    # This container runs `npm install` on repos strangers submit. The limits are
+    # the only thing standing between a malicious build and the whole host: without
+    # them one runaway install takes down every other service on the box.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.5"
+    restart: unless-stopped
+
+  screenshot-service:
+    build:
+      context: .
+      dockerfile: apps/screenshot-service/Dockerfile
+    environment:
+      ACCOUNT_ID: ${ACCOUNT_ID}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      NEON_DB: ${NEON_DB}
+      REDIS_URL: redis://redis:6379
+      # Reached over the internal network, so the port is the container's own 3001
+      # rather than anything Caddy publishes.
+      REQUEST_HANDLER_ORIGIN: http://request-handler:3001
+      PREVIEW_HOST: localhost
+      # Chromium navigates to http://<id>.localhost/, and inside a container that
+      # resolves to this container's own loopback — nothing listens there. Point
+      # the wildcard at Caddy so the browser takes the same route a visitor does.
+      # In production real DNS does this and the variable is simply unset.
+      CHROMIUM_HOST_RESOLVER_RULES: "MAP *.localhost caddy"
+    depends_on:
+      redis:
+        condition: service_healthy
+      request-handler:
+        condition: service_started
+    # Chromium is memory-hungry and /dev/shm defaults to 64MB in a container, which
+    # is where "Target closed" crashes come from. Raising it is the supported fix;
+    # --disable-dev-shm-usage trades the crash for slower rendering.
+    shm_size: 1gb
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  caddy-data:

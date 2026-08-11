@@ -1,0 +1,127 @@
+# Builds the five service images and pushes them to GitHub Container Registry,
+# then tells the VPS to pull and restart.
+#
+# The runner does NOT run the stack. It is a throwaway VM — anything started here
+# dies with the job. It builds images; the server runs them. That split is also why
+# the VPS needs neither the source nor the CPU to compile it.
+name: CD
+
+on:
+  push:
+    branches: [main, master]
+  # Manual runs are useful when only the compose file or Caddyfile changed.
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # NOT ghcr.io/<owner>/<repo>/<service>: this repo is "vercel-project_", and a
+  # trailing underscore is invalid in a Docker image path — the same rule that made
+  # compose fail with "invalid reference format". A flat prefix sidesteps it.
+  IMAGE_PREFIX: ghcr.io/poojahooda22/vercel-clone
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for GITHUB_TOKEN to push to ghcr. Without it the push 403s at the
+      # very end, after every layer has already been built.
+      packages: write
+
+    strategy:
+      # One service failing should not cancel the others; a partial push is easier
+      # to reason about than four cancelled builds hiding one real error.
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            dockerfile: apps/frontend/Dockerfile
+          - service: upload-service
+            dockerfile: apps/upload-service/Dockerfile
+          - service: request-handler
+            dockerfile: apps/request-handler/Dockerfile
+          - service: deploy-service
+            dockerfile: apps/deploy-service/Dockerfile
+          - service: screenshot-service
+            dockerfile: apps/screenshot-service/Dockerfile
+          # Caddy with the Cloudflare DNS plugin compiled in — the stock image
+          # cannot issue a wildcard certificate. Built here rather than on the VPS
+          # so the server never needs a Go toolchain.
+          - service: caddy
+            dockerfile: docker/caddy/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # Issued automatically per run — no PAT to create, rotate or leak.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          # Context is the repo ROOT, not the app folder: every Dockerfile begins
+          # with `turbo prune`, which needs the root lockfile and the workspaces.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # Two tags on purpose. :latest is what compose pulls; the commit SHA is
+          # what makes a rollback possible — "restart the previous image" needs an
+          # immutable name, and :latest by definition does not have one.
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+          # Layer cache lives in the registry, so a run reuses the previous run's
+          # npm ci layer instead of reinstalling from scratch every time.
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:buildcache,mode=max
+          build-args: |
+            NEXT_PUBLIC_UPLOAD_SERVICE=/api
+            NEXT_PUBLIC_REQUEST_HANDLER_HOST=${{ vars.PUBLIC_HOST || 'localhost' }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # Skips cleanly until the VPS exists (Phase 7). Without this guard every push
+    # would show a red X for a server that has not been rented yet, and a workflow
+    # that is always failing is a workflow nobody reads.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose and Caddy config to the server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # Caddyfile.prod, not Caddyfile: the dev one is plain http on localhost
+          # and would serve nothing on a real domain. The server needs only these
+          # two files — application secrets live in a .env placed on the box by
+          # hand and are never sent from CI.
+          source: "docker-compose.prod.yml,Caddyfile.prod"
+          target: "~/vercel-clone"
+
+      - name: Pull the new images and restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ~/vercel-clone
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            # `up -d` recreates only what changed, and NOT `docker stop && docker run`
+            # — that pattern fails on the first deploy (nothing to stop) and on every
+            # later one (the container name is still taken).
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Old image layers accumulate to gigabytes on a small disk otherwise.
+            docker image prune -f

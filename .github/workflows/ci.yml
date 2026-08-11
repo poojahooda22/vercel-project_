@@ -1,0 +1,33 @@
+# Runs on every push and pull request. Cheap, fast, and catches the class of
+# breakage that would otherwise only surface halfway through a Docker build —
+# where a TypeScript error costs several minutes of image layers first.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          # Restores ~/.npm between runs. Keyed on the lockfile, so it only
+          # invalidates when dependencies actually change.
+          cache: npm
+
+      # `npm ci` and not `npm install`: it installs exactly the lockfile and fails
+      # if package.json and package-lock.json have drifted, which is the whole
+      # point of running this in CI rather than trusting a local install.
+      - name: Install workspace
+        run: npm ci
+
+      # turbo resolves the order itself, so packages/shared is built before the
+      # apps that import its .d.ts files.
+      - name: Typecheck and build
+        run: npx turbo run typecheck build

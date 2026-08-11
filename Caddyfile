@@ -1,0 +1,51 @@
+# Local development. Caddy is the single front door: it owns port 80 and routes by
+# hostname, which is the only way {id}.localhost can reach the request handler —
+# Docker can publish ports, but it cannot route on a Host header.
+#
+# `http://` prefixes disable TLS deliberately. Locally that keeps setup to zero;
+# in production the same two blocks get real hostnames and Caddy issues a wildcard
+# certificate via DNS-01 (HTTP-01 cannot issue wildcards).
+
+# The dashboard, and the API under the SAME origin. This is what lets the session
+# cookie work with no SameSite or CORS configuration: to the browser, the page and
+# /api/* are one site.
+# The dashboard is on BARE localhost, not app.localhost, and that is forced by
+# Google: it accepts "localhost" as a testing origin but rejects every subdomain of
+# it — "Invalid origin: Must end with a public top-level domain". So app.localhost
+# can never be registered as an OAuth origin, no matter how the proxy is set up.
+#
+# Production is unaffected: app.poojahooda.com is a real domain with a real TLD, so
+# the subdomain split we actually want works there. This is a local-dev-only shape.
+#
+# Bare "localhost" does not match the "*.localhost" block below — a wildcard label
+# requires something in front of it — so deployments and the dashboard coexist.
+http://localhost {
+	# /api/auth/* belongs to the FRONTEND, not the upload service. Better Auth is a
+	# Next.js route handler at app/api/auth/[...all], so it is served by Next on the
+	# same origin — and the prefix must NOT be stripped, because /api/auth IS its
+	# real path. Routing it to the upload service instead produced an Express 404
+	# ("Cannot POST /auth/sign-in/social") and made every social login impossible,
+	# which looks exactly like a misconfigured OAuth console.
+	#
+	# Order matters: this block is more specific than /api/* below and must win.
+	handle /api/auth/* {
+		reverse_proxy frontend:3002
+	}
+
+	handle /api/* {
+		# The upload service's routes are /deploy, /deployments, … with no /api
+		# prefix, so it is stripped here rather than added to every route.
+		uri strip_prefix /api
+		reverse_proxy upload-service:3000
+	}
+
+	handle {
+		reverse_proxy frontend:3002
+	}
+}
+
+# Every deployment. The wildcard must NOT also match app.localhost — Caddy matches
+# the most specific host block first, so the block above wins for that name.
+http://*.localhost {
+	reverse_proxy request-handler:3001
+}

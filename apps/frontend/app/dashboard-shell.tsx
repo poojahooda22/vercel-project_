@@ -16,7 +16,7 @@ import {
 import { SidebarNav } from "@/components/SidebarNav/SidebarNav";
 import type { SidebarNavItem } from "@/components/SidebarNav/SidebarNav";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/DropdownMenu/DropdownMenu";
-import { signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS: SidebarNavItem[] = [
@@ -80,6 +80,17 @@ export function DashboardShell({
   // expanded markup disagree with the client's on first paint.
   const [collapsed, setCollapsed] = useState(false);
 
+  // The account row used to be two hardcoded strings, so it showed one particular
+  // person no matter who was signed in. Better Auth already stores name, email and
+  // the provider's avatar URL on the user row — this just reads them.
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
+
+  // Fall back to the email's local part: Better Auth allows a null name, and an
+  // empty account row looks broken. While the session is still loading, show
+  // nothing rather than a placeholder that would flash and then change.
+  const displayName = user?.name || user?.email?.split("@")[0] || (isPending ? "…" : "Account");
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Fixed: the sidebar must not scroll away with the content. */}
@@ -100,8 +111,12 @@ export function DashboardShell({
           activeItemId={active}
           onNavItemClick={onNavigate}
           account={{
-            name: "poojahooda22",
-            email: "phooda938@gmail.com",
+            name: displayName,
+            email: user?.email ?? "",
+            // The provider's profile photo. Google and GitHub both return one and
+            // Better Auth persists it on the user row; the initials in the circle
+            // are the fallback when it is missing or fails to load.
+            avatarSrc: user?.image ?? undefined,
             menuItems: (
               <>
                 <DropdownMenuItem icon={<Sun />} onSelect={() => setTheme("light")}>

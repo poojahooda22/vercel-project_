@@ -8,6 +8,20 @@ function optional(name: string, fallback: string): string {
 const REQUEST_HANDLER_ORIGIN = optional("REQUEST_HANDLER_ORIGIN", "http://127.0.0.1:3001");
 const PREVIEW_HOST = optional("PREVIEW_HOST", "localhost:3001");
 
+/**
+ * Optional Chromium resolver override, e.g. "MAP *.localhost caddy".
+ *
+ * Needed inside Docker. The liveness poll below talks to the request handler by
+ * service name, so it works — but Chromium navigates to the real visitor URL
+ * `http://{id}.<PREVIEW_HOST>/`, and inside a container `*.localhost` resolves to
+ * that container's OWN loopback, where nothing listens: ERR_CONNECTION_REFUSED.
+ *
+ * Mapping the wildcard onto the proxy reproduces what production does with real
+ * DNS, so the browser exercises the same path a visitor would rather than a
+ * special-cased internal address.
+ */
+const HOST_RESOLVER_RULES = process.env.CHROMIUM_HOST_RESOLVER_RULES;
+
 // Card thumbnails, not archival captures. Viewport-only also sidesteps Chromium's
 // 16384px compositor texture limit entirely — a page that reports an absurd scroll
 // height can never turn into an allocation big enough to take the box down.
@@ -83,7 +97,10 @@ async function getBrowser(): Promise<Browser> {
   // sandbox because Lambda is a throwaway root microVM; this worker is a
   // long-lived process sitting next to live R2 and Neon credentials, and it
   // renders arbitrary user-deployed JavaScript.
-  browser = await chromium.launch({ headless: true });
+  const args = HOST_RESOLVER_RULES
+    ? [`--host-resolver-rules=${HOST_RESOLVER_RULES}`]
+    : [];
+  browser = await chromium.launch({ headless: true, args });
   return browser;
 }
 

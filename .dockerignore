@@ -1,0 +1,46 @@
+# Everything here is excluded from the build context, which is what `COPY . .`
+# in the prune stage would otherwise sweep up.
+
+# SECRETS. The single most important entry in this file. Without it, `COPY . .`
+# puts live R2 keys and the Neon connection string inside an image that then gets
+# pushed to a registry — where deleting it later does not help, because the layer
+# is already published. The reference monorepo this project follows ignores only
+# node_modules, which is exactly how that happens.
+.env
+.env.*
+!.env.example
+
+# Dependencies: reinstalled inside the image from the pruned lockfile. Copying the
+# host's would also drag in platform-specific binaries built for Windows.
+node_modules
+**/node_modules
+
+# Build output: regenerated in the builder stage. Copying it in risks shipping a
+# stale dist that silently disagrees with the source next to it.
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+out
+**/out
+
+# Runtime data: cloned user repos and their build artifacts.
+output
+**/output
+
+# Version control and tooling
+.git
+.gitignore
+.github
+.claude
+.cursor
+.vscode
+graphify-out
+
+# Local noise
+*.log
+npm-debug.log*
+docs
+README.md

@@ -1,0 +1,48 @@
+# Production. Separate from the dev Caddyfile because the two differ structurally,
+# not just in hostname: dev is plain http on one machine, this terminates TLS and
+# holds a wildcard certificate.
+#
+# {$DOMAIN} and {$CF_API_TOKEN} are read from the environment at startup, so the
+# same file works for any domain — Phase 7 sets DOMAIN in the server's .env and
+# nothing here changes.
+
+{
+	# Where Let's Encrypt sends expiry warnings. Worth setting: a wildcard that
+	# quietly fails to renew takes every deployment offline at once.
+	email {$ACME_EMAIL}
+}
+
+# The dashboard, with the API on the SAME origin so the session cookie needs no
+# cross-site handling. Identical arrangement to dev, which is the point — the thing
+# that works locally is the thing that ships.
+app.{$DOMAIN} {
+	# Better Auth is a Next.js route handler at app/api/auth/[...all], so it belongs
+	# to the frontend and the prefix must NOT be stripped. Routing it to the upload
+	# service instead produces an Express 404 that looks exactly like a broken OAuth
+	# config — it cost an hour to find once already.
+	handle /api/auth/* {
+		reverse_proxy frontend:3002
+	}
+
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy upload-service:3000
+	}
+
+	handle {
+		reverse_proxy frontend:3002
+	}
+}
+
+# Every deployment: {id}.example.com -> the request handler, which reads the first
+# hostname label as the deployment id.
+#
+# This block needs the wildcard certificate, hence DNS-01. The apex is deliberately
+# NOT matched here: a wildcard covers one label, so example.com itself is untouched
+# and whatever already serves it — a portfolio on Vercel, say — keeps working.
+*.{$DOMAIN} {
+	tls {
+		dns cloudflare {$CF_API_TOKEN}
+	}
+	reverse_proxy request-handler:3001
+}
