@@ -348,7 +348,9 @@ export const SidebarNav = React.forwardRef<HTMLDivElement, SidebarNavProps>(
                         )}
                     >
                         {logo}
-                        {!isSlim && (
+                        {/* Only render search when a caller actually handles it —
+                            otherwise the header ships a button that does nothing. */}
+                        {!isSlim && onSearchClick && (
                             <button
                                 type="button"
                                 onClick={onSearchClick}
@@ -438,6 +440,7 @@ export const SidebarNav = React.forwardRef<HTMLDivElement, SidebarNavProps>(
                                     side="top"
                                     align="start"
                                     sideOffset={8}
+                                    showDetails
                                 >
                                     {account.menuItems}
                                 </AvatarDropdown>

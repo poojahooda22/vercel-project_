@@ -57,6 +57,26 @@ export async function deletePrefix(prefix: string): Promise<number> {
   return deleted;
 }
 
+/**
+ * Reads one object, or null when it does not exist.
+ *
+ * Screenshots are served through this service rather than from a public bucket
+ * URL: deployment ids are short, so a guessable public key namespace would let
+ * anyone enumerate every project's preview image.
+ */
+export async function getObjectBytes(key: string): Promise<Buffer | null> {
+  try {
+    const obj = await s3.getObject({ Bucket: BUCKET, Key: key });
+    if (!obj.Body) return null;
+    return Buffer.from(await obj.Body.transformToByteArray());
+  } catch (e) {
+    const name = (e as { name?: string }).name;
+    const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (name === "NoSuchKey" || name === "NotFound" || status === 404) return null;
+    throw e;
+  }
+}
+
 // fileName is the destination object name, e.g. "output/a1b2c/src/App.jsx".
 // localFilePath is where the file lives on this machine.
 export async function uploadFile(fileName: string, localFilePath: string): Promise<void> {

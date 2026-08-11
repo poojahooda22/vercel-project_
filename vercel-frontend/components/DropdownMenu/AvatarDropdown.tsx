@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback, AvatarStatus } from '../Avatar/Avatar';
 import { AvatarLabelGroup } from '../Avatar/AvatarLabelGroup';
@@ -17,6 +18,9 @@ export interface AvatarDropdownProps {
     /** Secondary text in header (email, role, etc.). */
     email?: string;
     status?: AvatarStatusType;
+    /** Render the trigger as a full-width row (avatar + name + chevron) instead of
+     *  a bare avatar. Used by the sidebar footer, where the name has room to show. */
+    showDetails?: boolean;
     children: React.ReactNode;
     /** @default 'end' */
     align?: 'start' | 'center' | 'end';
@@ -38,6 +42,7 @@ export const AvatarDropdown = React.forwardRef<HTMLButtonElement, AvatarDropdown
         name,
         email,
         status,
+        showDetails = false,
         children,
         align = 'end',
         side = 'bottom',
@@ -64,19 +69,30 @@ export const AvatarDropdown = React.forwardRef<HTMLButtonElement, AvatarDropdown
                         ref={ref}
                         type="button"
                         className={cn(
-                            'rounded-full focus-visible:outline-none cursor-pointer',
+                            'focus-visible:outline-none cursor-pointer',
                             'focus-visible:shadow-focus-ring-brand',
                             'disabled:opacity-50 disabled:pointer-events-none',
-                            isOpen && 'shadow-focus-ring-gray',
+                            showDetails
+                                ? 'flex w-full items-center gap-md rounded-md p-sm text-left transition-colors hover:bg-background-active'
+                                : 'rounded-full',
+                            isOpen && (showDetails ? 'bg-background-active' : 'shadow-focus-ring-gray'),
                             className
                         )}
                         aria-label={`Open user menu for ${name}`}
                     >
-                        <Avatar size="md">
+                        <Avatar size={showDetails ? 'sm' : 'md'}>
                             <AvatarImage src={src} alt={name} />
                             <AvatarFallback>{fallback}</AvatarFallback>
                             {status && <AvatarStatus status={status} />}
                         </Avatar>
+                        {showDetails && (
+                            <>
+                                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                                    {name}
+                                </span>
+                                <ChevronsUpDown className="size-4 shrink-0 text-foreground-tertiary" />
+                            </>
+                        )}
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent

@@ -1,10 +1,23 @@
 "use client";
 
-import { BarChart3, FileText, LayoutGrid, LogOut, Moon, Rocket, Settings, Sun } from "lucide-react";
+import { useState } from "react";
+import {
+  BarChart3,
+  FileText,
+  LayoutGrid,
+  LogOut,
+  Moon,
+  PanelLeft,
+  Rocket,
+  Settings,
+  Sun,
+  Triangle,
+} from "lucide-react";
 import { SidebarNav } from "@/components/SidebarNav/SidebarNav";
 import type { SidebarNavItem } from "@/components/SidebarNav/SidebarNav";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/DropdownMenu/DropdownMenu";
 import { signOut } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS: SidebarNavItem[] = [
   { id: "projects", label: "Projects", icon: <LayoutGrid className="size-[18px]" /> },
@@ -22,6 +35,38 @@ function setTheme(theme: "light" | "dark") {
   }
 }
 
+/** Header content: the wordmark, plus the control that collapses the rail.
+ *  Collapsed leaves only the toggle, which the 64px header centres. */
+function Brand({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  return (
+    <>
+      {!collapsed && (
+        <span className="flex min-w-0 items-center gap-md">
+          <Triangle className="size-4 shrink-0 fill-foreground text-foreground" />
+          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+            Deploy
+          </span>
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={label}
+        title={label}
+        className={cn(
+          "inline-flex size-8 shrink-0 items-center justify-center rounded-md",
+          "text-foreground-tertiary transition-colors hover:bg-background-active hover:text-foreground",
+          "focus-visible:outline-none focus-visible:shadow-focus-ring-brand-xs",
+          !collapsed && "ml-auto",
+        )}
+      >
+        <PanelLeft className="size-[18px]" />
+      </button>
+    </>
+  );
+}
+
 export function DashboardShell({
   children,
   active,
@@ -31,12 +76,20 @@ export function DashboardShell({
   active: string;
   onNavigate: (id: string) => void;
 }) {
+  // Not persisted: reading localStorage during render would make the server's
+  // expanded markup disagree with the client's on first paint.
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Fixed: the sidebar must not scroll away with the content. */}
       <div className="shrink-0 h-full">
         <SidebarNav
-          style="simple"
+          // `slim` is the design system's icon-only rail — it already gives the
+          // collapsed layout (64px, tooltips via title, centred account row).
+          style={collapsed ? "slim" : "simple"}
+          className="transition-[width] duration-200 ease-out motion-reduce:transition-none"
+          logo={<Brand collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />}
           navItems={NAV_ITEMS}
           activeItemId={active}
           onNavItemClick={onNavigate}
@@ -45,28 +98,26 @@ export function DashboardShell({
             email: "phooda938@gmail.com",
             menuItems: (
               <>
-                <DropdownMenuItem onSelect={() => setTheme("light")}>
-                  <Sun className="size-4" />
+                <DropdownMenuItem icon={<Sun />} onSelect={() => setTheme("light")}>
                   Light theme
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setTheme("dark")}>
-                  <Moon className="size-4" />
+                <DropdownMenuItem icon={<Moon />} onSelect={() => setTheme("dark")}>
                   Dark theme
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => onNavigate("settings")}>
-                  <Settings className="size-4" />
+                <DropdownMenuItem icon={<Settings />} onSelect={() => onNavigate("settings")}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  icon={<LogOut />}
+                  destructive
                   onSelect={() => {
                     signOut().finally(() => {
                       window.location.href = "/login";
                     });
                   }}
                 >
-                  <LogOut className="size-4" />
                   Log out
                 </DropdownMenuItem>
               </>

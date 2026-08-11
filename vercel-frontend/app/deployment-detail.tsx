@@ -2,6 +2,7 @@
 
 import { ArrowLeft, ExternalLink, GitBranch, RotateCcw, Trash2 } from "lucide-react";
 import { deployedUrl } from "@/lib/config";
+import { Screenshot } from "./screenshot";
 import {
   DOT,
   LABEL,
@@ -80,9 +81,7 @@ export function DeploymentDetail({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3xl p-3xl">
-          <div className="aspect-[4/3] rounded-md border border-secondary bg-background flex items-center justify-center">
-            <span className="text-sm text-foreground-placeholder">No Screenshot Available</span>
-          </div>
+          <Screenshot deployment={d} />
 
           <div className="flex flex-col gap-2xl min-w-0">
             <Field label="Deployment">

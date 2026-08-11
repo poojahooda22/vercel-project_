@@ -22,35 +22,61 @@ export interface Deployment {
   created_at: string;
   building_at: string | null;
   finished_at: string | null;
+  screenshot_at: string | null;
+  user_id: string | null;
 }
+
+/**
+ * Every function below takes the caller's userId and puts it in the WHERE clause.
+ *
+ * The ownership test is the query, never an `if` around the query. A separate
+ * "fetch, compare owner, then act" would leave a window between the check and the
+ * act, and one forgotten branch silently exposes every other tenant's rows.
+ * Zero rows affected IS "not yours" and "does not exist" — indistinguishable to the
+ * caller on purpose, so the API cannot be used to probe which ids exist.
+ */
 
 // Reserving the id IS the collision check: a duplicate id makes the insert
 // return no rows rather than silently overwriting another deployment.
-export async function createDeployment(id: string, repoUrl: string): Promise<boolean> {
+export async function createDeployment(
+  id: string,
+  repoUrl: string,
+  userId: string
+): Promise<boolean> {
   const rows = await sql`
-    INSERT INTO deployments (id, repo_url, state)
-    VALUES (${id}, ${repoUrl}, 'queued')
+    INSERT INTO deployments (id, repo_url, state, user_id)
+    VALUES (${id}, ${repoUrl}, 'queued', ${userId})
     ON CONFLICT (id) DO NOTHING
     RETURNING id
   `;
   return rows.length === 1;
 }
 
-export async function getDeployment(id: string): Promise<Deployment | null> {
-  const rows = await sql`SELECT * FROM deployments WHERE id = ${id}`;
+export async function getDeployment(id: string, userId: string): Promise<Deployment | null> {
+  const rows = await sql`
+    SELECT * FROM deployments WHERE id = ${id} AND user_id = ${userId}
+  `;
   return (rows[0] as Deployment) ?? null;
 }
 
-export async function listDeployments(limit = 20): Promise<Deployment[]> {
+// Ordered + limited to match the (user_id, created_at DESC) index exactly, so this
+// stays an index scan rather than a sort over every row the user owns.
+export async function listDeployments(userId: string, limit = 20): Promise<Deployment[]> {
   const rows = await sql`
-    SELECT * FROM deployments ORDER BY created_at DESC LIMIT ${limit}
+    SELECT * FROM deployments
+     WHERE user_id = ${userId}
+     ORDER BY created_at DESC
+     LIMIT ${limit}
   `;
   return rows as Deployment[];
 }
 
-// Returns false when the row was already gone, so a double-click deletes once.
-export async function deleteDeployment(id: string): Promise<boolean> {
-  const rows = await sql`DELETE FROM deployments WHERE id = ${id} RETURNING id`;
+// Returns false when the row was already gone OR belongs to someone else, so a
+// double-click deletes once and a guessed id deletes nothing.
+export async function deleteDeployment(id: string, userId: string): Promise<boolean> {
+  const rows = await sql`
+    DELETE FROM deployments WHERE id = ${id} AND user_id = ${userId} RETURNING id
+  `;
   return rows.length === 1;
 }
 

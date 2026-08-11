@@ -9,8 +9,14 @@ import { planBuild, resolvePublishDir } from "./publish-dir";
 const subscriber = createClient();
 subscriber.on("error", (err) => console.error("Redis client error", err));
 
+// A second connection for publishing: brPop blocks the one it runs on, and node-redis
+// wants a dedicated client for blocking commands rather than sharing one.
+const publisher = createClient();
+publisher.on("error", (err) => console.error("Redis client error", err));
+
 async function main() {
     await subscriber.connect();
+    await publisher.connect();
     console.log("worker waiting on build-queue");
 
     while (1) {
@@ -53,6 +59,12 @@ async function main() {
             await copyFinalDist(id, publishDir);
             await markDeployed(id);
             console.log(`  ${id} deployed`);
+
+            // Hand the screenshot off only once the deployment is live and recorded.
+            // Capturing here in-process would photograph the site before the request
+            // handler can serve it, and a Chromium failure would land inside this
+            // try/catch and mark a perfectly good build as failed.
+            await publisher.lPush("screenshot-queue", id);
         } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
             await markFailed(id, message);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { DashboardShell } from "./dashboard-shell";
 import { DeploymentDetail } from "./deployment-detail";
+import { DeploymentsTable } from "./deployments-table";
 import { DeleteProjectModal } from "./delete-modal";
 import { UploadProjectModal } from "./upload-modal";
 import { deployedUrl } from "@/lib/config";
@@ -38,9 +39,17 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
-  // Keep polling only while something is still moving.
+  // Keep polling only while something is still moving. A screenshot lands a few
+  // seconds AFTER the state reaches 'deployed', so stopping at 'deployed' would
+  // leave the card blank until a manual refresh — but the grace window has to be
+  // bounded, or a capture that never succeeds polls this page forever.
   useEffect(() => {
-    const active = deployments.some((d) => d.state === "queued" || d.state === "building");
+    const active = deployments.some((d) => {
+      if (d.state === "queued" || d.state === "building") return true;
+      if (d.state !== "deployed" || d.screenshot_at) return false;
+      const finished = d.finished_at ? new Date(d.finished_at).getTime() : 0;
+      return Date.now() - finished < 3 * 60_000;
+    });
     if (!active) return;
     const t = setTimeout(load, 3000);
     return () => clearTimeout(t);
@@ -70,6 +79,8 @@ export default function DashboardPage() {
           onBack={() => setSelectedId(null)}
           onDelete={() => setPendingDelete(selected)}
         />
+      ) : nav === "deployments" ? (
+        <DeploymentsTable deployments={deployments} onOpen={setSelectedId} />
       ) : nav !== "projects" ? (
         <Placeholder title={nav} />
       ) : (
@@ -122,7 +133,16 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <UploadProjectModal open={modalOpen} onOpenChange={setModalOpen} onDone={load} />
+      <UploadProjectModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onDone={load}
+        onDeployed={(id) => {
+          setModalOpen(false);
+          setNav("projects");
+          setSelectedId(id);
+        }}
+      />
 
       {pendingDelete ? (
         <DeleteProjectModal

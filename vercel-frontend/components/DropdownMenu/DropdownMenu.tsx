@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
@@ -53,20 +53,6 @@ const DropdownMenuContent = React.forwardRef<
 >(({ className, sideOffset = 4, children, open, ...props }, ref) => {
     const shouldReduceMotion = useReducedMotion();
 
-    // React's DOM drag/animation handlers and Motion's same-named props have
-    // incompatible signatures, so spreading Radix's props straight into
-    // motion.div does not typecheck. This dropdown uses none of them; dropping
-    // them from the motion spread keeps behaviour identical.
-    const {
-        onDrag: _onDrag,
-        onDragStart: _onDragStart,
-        onDragEnd: _onDragEnd,
-        onAnimationStart: _onAnimationStart,
-        onAnimationEnd: _onAnimationEnd,
-        onAnimationIteration: _onAnimationIteration,
-        ...motionProps
-    } = props;
-
     const staggered = React.Children.map(children, (child, i) =>
         React.isValidElement(child) ? (
             <motion.div key={i} variants={itemVariants} transition={itemTransition}>
@@ -101,53 +87,81 @@ const DropdownMenuContent = React.forwardRef<
         );
     }
 
-    /* Framer Motion height-reveal path */
+    /* Framer Motion height-reveal path.
+     *
+     * Positioning props (side / align / collision / dismiss handlers) belong to
+     * Radix's Content, NOT to the motion.div it renders through asChild.
+     * Spreading them into motion.div left Radix on its side="bottom" default,
+     * which pinned the sidebar's account menu to the viewport floor as an
+     * unreadable sliver and leaked `side`/`align` as invalid DOM attributes.
+     *
+     * There is deliberately NO exit animation here, and no AnimatePresence.
+     * Radix arms a document-level `pointerdown` listener for the whole mounted
+     * lifetime of DismissableLayer — added and removed only in its effect
+     * (@radix-ui/react-dismissable-layer/dist/index.mjs:166,170) — and the
+     * trigger is never registered as a Branch (grep Branch in react-menu and
+     * react-dropdown-menu: 0 hits), so a click on the trigger counts as
+     * "outside". Any exit animation keeps that layer alive after close, and a
+     * re-click inside the exit window opens the menu and is dismissed by the
+     * dying layer in the same event — measured as a 300ms window where the
+     * account button was completely dead. Unmounting in the same commit as
+     * `open === false` is what keeps the trigger re-clickable. */
     return (
         <DropdownMenuPrimitive.Portal forceMount>
-            <AnimatePresence>
-                {open && (
-                    <DropdownMenuPrimitive.Content
-                        ref={ref}
-                        sideOffset={sideOffset}
-                        forceMount
-                        asChild
+            {open && (
+                <DropdownMenuPrimitive.Content
+                    ref={ref}
+                    {...props}
+                    sideOffset={sideOffset}
+                    // asChild is structural — the motion.div child depends on it —
+                    // so it sits after the spread where a caller cannot override it.
+                    // forceMount is redundant (inherited from the Portal via
+                    // react-menu/dist/index.mjs:109 -> :117) and kept only to state
+                    // plainly that the `open &&` gate above owns mount/unmount.
+                    forceMount
+                    asChild
+                >
+                    <motion.div
+                        className={cn(
+                            'z-50 w-[240px] flex flex-col',
+                            'bg-background border border-secondary rounded-md',
+                            'shadow-lg',
+                            className,
+                        )}
+                        initial={shouldReduceMotion ? false : undefined}
+                        animate="open"
                     >
+                        {/* Inner container — clips content during height animation.
+                            min-h-0 keeps it from becoming the clamped box: as a flex
+                            child its min-height:auto would otherwise resolve against
+                            the clamp and guillotine the overflow instead of scrolling. */}
                         <motion.div
-                            className={cn(
-                                'z-50 w-[240px] flex flex-col',
-                                'max-h-[var(--radix-dropdown-menu-content-available-height)]',
-                                'bg-background border border-secondary rounded-md',
-                                'shadow-lg',
-                                className,
-                            )}
-                            initial={shouldReduceMotion ? false : undefined}
+                            className="overflow-hidden rounded-md min-h-0"
+                            variants={shouldReduceMotion ? undefined : containerVariants}
+                            initial="closed"
                             animate="open"
-                            exit="open"
-                            {...motionProps}
+                            transition={containerTransition}
                         >
-                            {/* Inner container — clips content during height animation */}
-                            <motion.div
-                                className="overflow-hidden rounded-md"
-                                variants={shouldReduceMotion ? undefined : containerVariants}
-                                initial="closed"
-                                animate="open"
-                                exit="closed"
-                                transition={containerTransition}
-                            >
-                                <div className="py-sm overflow-x-hidden overflow-y-auto scrollbar-themed">
-                                    <motion.div
-                                        variants={shouldReduceMotion ? undefined : staggerParentVariants}
-                                        initial="closed"
-                                        animate="open"
-                                    >
-                                        {staggered}
-                                    </motion.div>
-                                </div>
-                            </motion.div>
+                            {/* The available-height clamp lives on the SAME box that
+                                scrolls. Clamping an overflow:visible ancestor instead
+                                truncated the menu — the last item (Log out) rendered
+                                outside the box, unreachable by pointer or wheel.
+                                Radix's var measures the gap to the viewport edge, so
+                                subtract the 1px top + 1px bottom border the wrapper
+                                above adds outside this box, or the menu overhangs. */}
+                            <div className="py-sm overflow-x-hidden overflow-y-auto scrollbar-themed max-h-[calc(var(--radix-dropdown-menu-content-available-height)_-_2px)]">
+                                <motion.div
+                                    variants={shouldReduceMotion ? undefined : staggerParentVariants}
+                                    initial="closed"
+                                    animate="open"
+                                >
+                                    {staggered}
+                                </motion.div>
+                            </div>
                         </motion.div>
-                    </DropdownMenuPrimitive.Content>
-                )}
-            </AnimatePresence>
+                    </motion.div>
+                </DropdownMenuPrimitive.Content>
+            )}
         </DropdownMenuPrimitive.Portal>
     );
 });

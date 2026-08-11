@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CloudUpload, ExternalLink } from "lucide-react";
+import { CloudUpload, ExternalLink, Loader2 } from "lucide-react";
 import {
   Modal,
   ModalBody,
@@ -19,10 +19,13 @@ export function UploadProjectModal({
   open,
   onOpenChange,
   onDone,
+  onDeployed,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
+  /** Called once the build succeeds, so the page can open its detail view. */
+  onDeployed?: (id: string) => void;
 }) {
   const [repoUrl, setRepoUrl] = useState("");
   const [id, setId] = useState<string | null>(null);
@@ -31,6 +34,15 @@ export function UploadProjectModal({
   const [busy, setBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Held in refs so an inline arrow from the parent cannot change identity every
+  // render and restart the polling effect.
+  const onDoneRef = useRef(onDone);
+  const onDeployedRef = useRef(onDeployed);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+    onDeployedRef.current = onDeployed;
+  });
+
   // Poll until the deployment reaches a terminal state, then stop.
   useEffect(() => {
     if (!id) return;
@@ -38,13 +50,24 @@ export function UploadProjectModal({
 
     async function poll() {
       try {
-        const res = await fetch(`${UPLOAD_SERVICE}/status?id=${id}`);
+        // credentials: both /status and /deploy require a session now, and a
+        // cross-origin fetch drops the cookie unless asked to send it.
+        const res = await fetch(`${UPLOAD_SERVICE}/status?id=${id}`, {
+          credentials: "include",
+        });
         const body = await res.json();
         if (cancelled) return;
         setState(body.status);
         if (body.error) setError(body.error.split("\n")[0]);
-        onDone();
-        if (body.status !== "deployed" && body.status !== "failed") {
+        onDoneRef.current();
+
+        if (body.status === "deployed") {
+          // Success needs no acknowledgement — hand straight to the detail view.
+          onDeployedRef.current?.(body.id);
+          return;
+        }
+        // A failure keeps the modal open so the reason stays on screen.
+        if (body.status !== "failed") {
           timer.current = setTimeout(poll, 2000);
         }
       } catch (e) {
@@ -57,7 +80,7 @@ export function UploadProjectModal({
       cancelled = true;
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [id, onDone]);
+  }, [id]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +89,7 @@ export function UploadProjectModal({
     try {
       const res = await fetch(`${UPLOAD_SERVICE}/deploy`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoUrl }),
       });
@@ -160,9 +184,16 @@ export function UploadProjectModal({
             <button
               type="submit"
               disabled={inFlight}
-              className="flex-1 h-10 px-2xl rounded-md bg-fg text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              className="flex-1 inline-flex items-center justify-center gap-md h-10 px-2xl rounded-md bg-fg text-background text-sm font-medium hover:opacity-90 disabled:opacity-70"
             >
-              {busy ? "Uploading…" : id && !done ? `Uploading (${id})` : "Upload Project"}
+              {inFlight ? <Loader2 className="size-4 animate-spin" /> : null}
+              {/* A build runs 1-2 minutes, so the label names the current phase
+                  rather than leaving a bare spinner with no explanation. */}
+              {!inFlight
+                ? "Deploy Project"
+                : state
+                  ? `${LABEL[state]}…`
+                  : "Uploading…"}
             </button>
           </ModalFooter>
         </form>

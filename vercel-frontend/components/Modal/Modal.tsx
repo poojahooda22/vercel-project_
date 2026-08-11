@@ -76,7 +76,7 @@ const ModalContent = React.forwardRef<
 ));
 ModalContent.displayName = 'ModalContent';
 
-export interface ModalHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type ModalHeaderProps = React.HTMLAttributes<HTMLDivElement>
 
 const ModalHeader = React.forwardRef<HTMLDivElement, ModalHeaderProps>(
     ({ className, ...props }, ref) => (
@@ -127,8 +127,7 @@ const ModalIconBadge = React.forwardRef<HTMLDivElement, ModalIconBadgeProps>(
 );
 ModalIconBadge.displayName = 'ModalIconBadge';
 
-export interface ModalTitleProps
-    extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title> {}
+export type ModalTitleProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 
 const ModalTitle = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Title>,
@@ -142,8 +141,7 @@ const ModalTitle = React.forwardRef<
 ));
 ModalTitle.displayName = 'ModalTitle';
 
-export interface ModalDescriptionProps
-    extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description> {}
+export type ModalDescriptionProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 
 const ModalDescription = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Description>,
@@ -157,7 +155,7 @@ const ModalDescription = React.forwardRef<
 ));
 ModalDescription.displayName = 'ModalDescription';
 
-export interface ModalBodyProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type ModalBodyProps = React.HTMLAttributes<HTMLDivElement>
 
 const ModalBody = React.forwardRef<HTMLDivElement, ModalBodyProps>(
     ({ className, ...props }, ref) => (
@@ -170,7 +168,7 @@ const ModalBody = React.forwardRef<HTMLDivElement, ModalBodyProps>(
 );
 ModalBody.displayName = 'ModalBody';
 
-export interface ModalFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type ModalFooterProps = React.HTMLAttributes<HTMLDivElement>
 
 const ModalFooter = React.forwardRef<HTMLDivElement, ModalFooterProps>(
     ({ className, ...props }, ref) => (

@@ -10,15 +10,30 @@ export interface Deployment {
   created_at: string;
   building_at: string | null;
   finished_at: string | null;
+  /** When the screenshot was captured; null means there isn't one. */
+  screenshot_at: string | null;
 }
 
-// Monochrome status dots — the palette stays greyscale except for genuine
-// failure, which is the one thing that must stand out.
+// Served by the upload service rather than straight from the bucket: ids are short
+// enough that a public key namespace would be enumerable.
+export function screenshotUrl(id: string): string {
+  return `${UPLOAD_SERVICE}/screenshot/${id}`;
+}
+
+// The UI is monochrome apart from status, where colour carries real meaning:
+// green = live, amber = working, red = broken.
 export const DOT: Record<State, string> = {
   queued: "bg-fg-disabled",
-  building: "bg-fg-secondary animate-pulse",
-  deployed: "bg-fg",
+  building: "bg-fg-warning animate-pulse",
+  deployed: "bg-fg-success",
   failed: "bg-fg-error",
+};
+
+export const STATUS_TEXT: Record<State, string> = {
+  queued: "text-foreground-tertiary",
+  building: "text-fg-warning",
+  deployed: "text-fg-success",
+  failed: "text-fg-error",
 };
 
 export const LABEL: Record<State, string> = {
@@ -52,14 +67,23 @@ export function buildDuration(d: Deployment): string | null {
   return ms < 1000 ? "<1s" : `${Math.round(ms / 1000)}s`;
 }
 
+// The API is a different origin in dev (:3000 vs :3002), and fetch defaults to
+// credentials: "same-origin" — so without this the session cookie is silently
+// dropped and every call comes back 401. Harmless once Caddy puts both behind one
+// origin in production; required until then.
+const withSession: RequestInit = { credentials: "include" };
+
 export async function listDeployments(): Promise<Deployment[]> {
-  const res = await fetch(`${UPLOAD_SERVICE}/deployments`);
+  const res = await fetch(`${UPLOAD_SERVICE}/deployments`, withSession);
   if (!res.ok) throw new Error(`deployments ${res.status}`);
   return (await res.json()).deployments ?? [];
 }
 
 export async function deleteDeployment(id: string): Promise<void> {
-  const res = await fetch(`${UPLOAD_SERVICE}/deployments/${id}`, { method: "DELETE" });
+  const res = await fetch(`${UPLOAD_SERVICE}/deployments/${id}`, {
+    ...withSession,
+    method: "DELETE",
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `delete failed (${res.status})`);
