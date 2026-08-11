@@ -1,34 +1,18 @@
-import { S3, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
+import { createS3Client, s3Bucket } from "@vercel-clone/shared";
 
-function required(name: string): string {
-    const value = process.env[name];
-    if (!value) {
-      throw new Error(
-        `Missing environment variable ${name}. Set it in .env, then start with "npm run dev". ` +
-          `A bare "node dist/index.js" does NOT read .env — it needs --env-file=.env.`
-      );
-    }
-    return value;
-}
-
-const ACCOUNT_ID = required("ACCOUNT_ID");
-export const BUCKET = required("S3_BUCKET");
-
-const s3 = new S3({
-  region: "auto",
-  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: required("S3_ACCESS_KEY_ID"),
-    secretAccessKey: required("S3_SECRET_ACCESS_KEY"),
-  },
-});
+export const BUCKET = s3Bucket();
+const s3 = createS3Client();
 
 export async function downloadS3Folder(prefix: string) {
+    // BUCKET, not a hardcoded "vercel": downloads used the literal while uploads
+    // used $S3_BUCKET, so renaming the bucket would break reads and silently send
+    // writes somewhere else. They agreed only because the env held the same string.
     const allFiles = await s3.listObjectsV2({
-        Bucket: "vercel",
+        Bucket: BUCKET,
         Prefix: prefix
     });
     
@@ -43,7 +27,7 @@ export async function downloadS3Folder(prefix: string) {
                 fs.mkdirSync(dirName, { recursive: true });
             }
             const { Body } = await s3.getObject({
-                Bucket: "vercel",
+                Bucket: BUCKET,
                 Key: Key || ""
             });
             (Body as Readable).pipe(outputFile).on("finish", () => {

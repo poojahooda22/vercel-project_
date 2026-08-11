@@ -1,14 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Missing environment variable ${name}. Set it in .env, then start with "npm run dev".`
-    );
-  }
-  return value;
-}
+import { required } from "@vercel-clone/shared";
 
 export const sql = neon(required("NEON_DB"));
 

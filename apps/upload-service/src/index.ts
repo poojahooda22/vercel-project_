@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
-import { createClient } from "redis";
 import { generate } from "./utils";
 import simpleGit from "simple-git";
 import { getAllFiles } from "./file";
 import path from "path";
 import { deletePrefix, getObjectBytes, uploadFile } from "./aws";
 import { requireUser } from "./session";
+import { createRedisClient, BUILD_QUEUE } from "@vercel-clone/shared";
 import {
   createDeployment,
   deleteDeployment,
@@ -15,8 +15,7 @@ import {
   listDeployments,
 } from "./db";
 
-const publisher = createClient();
-publisher.on("error", (err) => console.error("Redis client error", err));
+const publisher = createRedisClient("upload/publisher");
 
 const app = express();
 
@@ -74,7 +73,7 @@ app.post("/deploy", async (req, res) => {
   // and gets "Unexpected token '<'", which says nothing about Redis. Worse, the
   // row stays 'queued' with no worker coming for it and no reason recorded.
   try {
-    await publisher.lPush("build-queue", id);
+    await publisher.lPush(BUILD_QUEUE, id);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     await failQueued(id, `could not enqueue build: ${reason}`);

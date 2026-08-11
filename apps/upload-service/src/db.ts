@@ -1,30 +1,11 @@
 import { neon } from "@neondatabase/serverless";
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Missing environment variable ${name}. Set it in .env, then start with "npm run dev".`
-    );
-  }
-  return value;
-}
+import { required, type Deployment, type DeploymentState } from "@vercel-clone/shared";
 
 export const sql = neon(required("NEON_DB"));
 
-export type DeploymentState = "queued" | "building" | "deployed" | "failed";
-
-export interface Deployment {
-  id: string;
-  repo_url: string;
-  state: DeploymentState;
-  error_message: string | null;
-  created_at: string;
-  building_at: string | null;
-  finished_at: string | null;
-  screenshot_at: string | null;
-  user_id: string | null;
-}
+// Re-exported so existing importers of "./db" keep working; the shape itself now
+// lives in the shared package, where the dashboard reads the same definition.
+export type { Deployment, DeploymentState };
 
 /**
  * Every function below takes the caller's userId and puts it in the WHERE clause.

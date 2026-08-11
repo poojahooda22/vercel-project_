@@ -16,20 +16,43 @@ import {
 export function DeploymentsTable({
   deployments,
   onOpen,
+  loading = false,
 }: {
   deployments: Deployment[];
   onOpen: (id: string) => void;
+  /** True until the first fetch resolves, so an unknown list is not called empty. */
+  loading?: boolean;
 }) {
   return (
     <div className="px-5xl py-4xl">
       <header className="mb-4xl">
         <h1 className="text-display-xs font-semibold text-foreground">Deployments</h1>
         <p className="text-sm text-foreground-tertiary mt-xs">
-          {deployments.length} deployment{deployments.length === 1 ? "" : "s"} across all projects
+          {loading
+            ? "Loading…"
+            : `${deployments.length} deployment${deployments.length === 1 ? "" : "s"} across all projects`}
         </p>
       </header>
 
-      {deployments.length === 0 ? (
+      {loading ? (
+        <div className="rounded-lg border border-secondary overflow-hidden">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-2xl px-2xl py-xl animate-pulse ${
+                i > 0 ? "border-t border-secondary" : ""
+              }`}
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block h-4 w-1/3 rounded bg-background-active" />
+                <span className="block mt-xs h-3 w-1/4 rounded bg-background-active" />
+              </span>
+              <span className="hidden sm:block w-[140px] h-4 rounded bg-background-active" />
+              <span className="w-[80px] h-3 rounded bg-background-active" />
+            </div>
+          ))}
+        </div>
+      ) : deployments.length === 0 ? (
         <div className="p-6xl rounded-lg border border-secondary text-center">
           <p className="text-foreground-secondary text-sm">No deployments yet.</p>
         </div>

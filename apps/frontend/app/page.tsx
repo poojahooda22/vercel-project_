@@ -25,6 +25,12 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [nav, setNav] = useState("projects");
   const [pendingDelete, setPendingDelete] = useState<Deployment | null>(null);
+  // Starts true: deployments arrive from a client-side fetch, so on the very first
+  // render the list is legitimately empty but UNKNOWN. Without this the page shows
+  // the "no deployments yet" empty state to someone who has six, until the request
+  // returns. Only the FIRST load flips it — the 3s poller must not re-show a
+  // spinner over content that is already on screen.
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -32,6 +38,8 @@ export default function DashboardPage() {
       setLoadError(null);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -80,7 +88,7 @@ export default function DashboardPage() {
           onDelete={() => setPendingDelete(selected)}
         />
       ) : nav === "deployments" ? (
-        <DeploymentsTable deployments={deployments} onOpen={setSelectedId} />
+        <DeploymentsTable deployments={deployments} onOpen={setSelectedId} loading={loading} />
       ) : nav !== "projects" ? (
         <Placeholder title={nav} />
       ) : (
@@ -89,7 +97,9 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-display-xs font-semibold text-foreground">Projects</h1>
               <p className="text-sm text-foreground-tertiary mt-xs">
-                {deployments.length} deployment{deployments.length === 1 ? "" : "s"}
+                {loading
+                  ? "Loading…"
+                  : `${deployments.length} deployment${deployments.length === 1 ? "" : "s"}`}
               </p>
             </div>
             <button
@@ -107,7 +117,26 @@ export default function DashboardPage() {
             </div>
           ) : null}
 
-          {!loadError && deployments.length === 0 ? (
+          {/* Skeletons rather than a spinner: they hold the same shape as the cards
+              that replace them, so the layout does not jump when data lands. */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2xl">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="p-2xl rounded-lg border border-secondary bg-background-secondary animate-pulse"
+                >
+                  <div className="h-5 w-1/2 rounded bg-background-active" />
+                  <div className="mt-md h-4 w-1/3 rounded bg-background-active" />
+                  <div className="mt-xl h-4 w-4/5 rounded bg-background-active" />
+                  <div className="mt-xs h-3 w-1/4 rounded bg-background-active" />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Only claim "none" once we have actually asked. */}
+          {!loading && !loadError && deployments.length === 0 ? (
             <div className="p-6xl rounded-lg border border-secondary text-center">
               <p className="text-foreground-secondary text-sm">No deployments yet.</p>
               <button

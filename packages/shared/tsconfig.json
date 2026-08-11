@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // Consumers are compiled separately, so they resolve this package through
+    // node_modules and need its .d.ts files to typecheck against.
+    "declaration": true,
+    // Declared explicitly rather than relying on TypeScript's automatic @types
+    // discovery: this package sits two levels down and gets its own local
+    // typescript install, and auto-discovery did not find the hoisted
+    // @types/node from here.
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
+}

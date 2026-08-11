@@ -88,7 +88,13 @@ export function DashboardShell({
           // `slim` is the design system's icon-only rail — it already gives the
           // collapsed layout (64px, tooltips via title, centred account row).
           style={collapsed ? "slim" : "simple"}
-          className="transition-[width] duration-200 ease-out motion-reduce:transition-none"
+          // cn() runs tailwind-merge, so a width here beats the component's own
+          // w-[312px]. It MUST stay conditional: applied while collapsed it would
+          // also override the slim rail's w-[64px] and break the collapse.
+          className={cn(
+            "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+            !collapsed && "w-64"
+          )}
           logo={<Brand collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />}
           navItems={NAV_ITEMS}
           activeItemId={active}

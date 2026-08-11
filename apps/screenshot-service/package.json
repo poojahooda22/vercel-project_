@@ -18,7 +18,8 @@
     "@aws-sdk/client-s3": "^3.1102.0",
     "@neondatabase/serverless": "^1.1.0",
     "playwright": "^1.58.0",
-    "redis": "^6.2.0"
+    "redis": "^6.2.0",
+    "@vercel-clone/shared": "*"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

@@ -1,32 +1,14 @@
 import express from "express";
 import { S3 } from "@aws-sdk/client-s3";
 import { contentTypeFor } from "./mime";
+import { createS3Client, s3Bucket } from "@vercel-clone/shared";
 
 
 const app = express();
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Missing environment variable ${name}. Set it in .env, then start with "npm run dev". ` +
-        `A bare "node dist/index.js" does NOT read .env — it needs --env-file=.env.`
-    );
-  }
-  return value;
-}
+export const BUCKET = s3Bucket();
 
-const ACCOUNT_ID = required("ACCOUNT_ID");
-export const BUCKET = required("S3_BUCKET");
-
-const s3 = new S3({
-  region: "auto",
-  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: required("S3_ACCESS_KEY_ID"),
-    secretAccessKey: required("S3_SECRET_ACCESS_KEY"),
-  },
-});
+const s3 = createS3Client();
 
 interface Fetched {
   body: Buffer;

@@ -16,7 +16,8 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "@vercel-clone/shared": "*"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

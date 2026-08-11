@@ -1,12 +1,11 @@
-import { createClient } from "redis";
 import { captureScreenshot, closeBrowser, deploymentUrl } from "./capture";
 import { uploadScreenshot } from "./aws";
 import { markScreenshot } from "./db";
+import { createRedisClient, SCREENSHOT_QUEUE } from "@vercel-clone/shared";
 
-const QUEUE = "screenshot-queue";
+const QUEUE = SCREENSHOT_QUEUE;
 
-const subscriber = createClient();
-subscriber.on("error", (err) => console.error("Redis client error", err));
+const subscriber = createRedisClient("screenshot/subscriber");
 
 async function main() {
   await subscriber.connect();
