@@ -34,6 +34,22 @@ export function UploadProjectModal({
   const [busy, setBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Every open starts clean. The dismissal reset in change() cannot cover the
+  // success path: the parent closes this modal by flipping `open` after
+  // onDeployed, so onOpenChange never fires and the previous URL survives to
+  // the next open. State is adjusted during render, not in an effect, so the
+  // stale value never reaches the DOM — an effect would paint one stale frame.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setRepoUrl("");
+      setId(null);
+      setState(null);
+      setError(null);
+    }
+  }
+
   // Held in refs so an inline arrow from the parent cannot change identity every
   // render and restart the polling effect.
   const onDoneRef = useRef(onDone);
