@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { BarChart3, ExternalLink, FileText, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { DashboardShell } from "./dashboard-shell";
 import { DeploymentDetail } from "./deployment-detail";
 import { DeploymentsTable } from "./deployments-table";
@@ -89,6 +89,13 @@ export default function DashboardPage() {
         />
       ) : nav === "deployments" ? (
         <DeploymentsTable deployments={deployments} onOpen={setSelectedId} loading={loading} />
+      ) : nav === "logs" || nav === "analytics" ? (
+        <ChooseProject
+          key={nav}
+          title={nav === "logs" ? "Logs" : "Analytics"}
+          deployments={deployments}
+          onChoose={setSelectedId}
+        />
       ) : nav !== "projects" ? (
         <Placeholder title={nav} />
       ) : (
@@ -193,6 +200,70 @@ function Placeholder({ title }: { title: string }) {
     <div className="px-5xl py-4xl">
       <h1 className="text-display-xs font-semibold text-foreground capitalize">{title}</h1>
       <p className="mt-xs text-sm text-foreground-tertiary">Not built yet.</p>
+    </div>
+  );
+}
+
+/** Centered project picker: these pages are per-project surfaces, so until a
+ *  project is chosen the whole viewport is the chooser, not an empty layout. */
+function ChooseProject({
+  title,
+  deployments,
+  onChoose,
+}: {
+  title: string;
+  deployments: Deployment[];
+  onChoose: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? deployments.filter(
+        (d) => repoName(d.repo_url).toLowerCase().includes(q) || d.id.toLowerCase().includes(q)
+      )
+    : [];
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-5xl">
+      <div className="inline-flex items-center justify-center size-10 rounded-md border border-secondary text-foreground-secondary">
+        {title === "Logs" ? <FileText className="size-5" /> : <BarChart3 className="size-5" />}
+      </div>
+      <h1 className="mt-xl text-md font-semibold text-foreground">Continue to {title}</h1>
+      <p className="mt-xs text-sm text-foreground-tertiary">Choose a project to continue</p>
+
+      <div className="mt-3xl w-full max-w-sm">
+        <input
+          autoFocus
+          placeholder="Find Project…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full h-10 px-xl rounded-md bg-background-secondary border border-border text-foreground text-sm placeholder:text-foreground-placeholder outline-none focus:border-brand"
+        />
+
+        {q ? (
+          matches.length ? (
+            <div className="mt-md py-xs rounded-md border border-secondary bg-background-secondary">
+              {matches.slice(0, 6).map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => onChoose(d.id)}
+                  className="w-full flex items-center justify-between gap-md px-xl py-md text-sm text-foreground hover:bg-background-hover"
+                >
+                  <span className="truncate">{repoName(d.repo_url)}</span>
+                  <span className="flex items-center gap-md shrink-0 text-foreground-tertiary">
+                    <span className={`size-2 rounded-full ${DOT[d.state]}`} />
+                    {d.id}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-md text-center text-sm text-foreground-tertiary">
+              No project matches “{query}”.
+            </p>
+          )
+        ) : null}
+      </div>
     </div>
   );
 }

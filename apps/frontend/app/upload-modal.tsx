@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CloudUpload, ExternalLink, Loader2 } from "lucide-react";
+import { CloudUpload, ExternalLink, Loader2, Minus, Plus } from "lucide-react";
 import {
   Modal,
   ModalBody,
@@ -28,6 +28,9 @@ export function UploadProjectModal({
   onDeployed?: (id: string) => void;
 }) {
   const [repoUrl, setRepoUrl] = useState("");
+  // Build-time variables, kept as ordered rows so the inputs stay stable while
+  // typing; folded into a KEY -> value object only at submit.
+  const [envRows, setEnvRows] = useState<{ key: string; value: string }[]>([]);
   const [id, setId] = useState<string | null>(null);
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +47,7 @@ export function UploadProjectModal({
     setPrevOpen(open);
     if (open) {
       setRepoUrl("");
+      setEnvRows([]);
       setId(null);
       setState(null);
       setError(null);
@@ -103,11 +107,18 @@ export function UploadProjectModal({
     setError(null);
     setBusy(true);
     try {
+      // Rows with an empty key are unfinished edits, not variables — drop them
+      // instead of failing the whole deploy on a leftover blank row.
+      const env: Record<string, string> = {};
+      for (const row of envRows) {
+        const key = row.key.trim();
+        if (key) env[key] = row.value;
+      }
       const res = await fetch(`${UPLOAD_SERVICE}/deploy`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl }),
+        body: JSON.stringify(Object.keys(env).length ? { repoUrl, env } : { repoUrl }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `upload failed (${res.status})`);
@@ -126,6 +137,7 @@ export function UploadProjectModal({
   function change(next: boolean) {
     if (!next) {
       setRepoUrl("");
+      setEnvRows([]);
       setId(null);
       setState(null);
       setError(null);
@@ -165,6 +177,64 @@ export function UploadProjectModal({
               disabled={inFlight}
               className="w-full h-10 px-xl rounded-md bg-background-secondary border border-border text-foreground text-sm placeholder:text-foreground-placeholder outline-none focus:border-brand disabled:opacity-50"
             />
+
+            <div className="mt-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">
+                  Environment Variables
+                  <span className="ml-md text-xs font-normal text-foreground-tertiary">
+                    build-time only
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  disabled={inFlight}
+                  onClick={() => setEnvRows((rows) => [...rows, { key: "", value: "" }])}
+                  className="inline-flex items-center gap-xs h-7 px-md rounded-md text-xs font-medium text-foreground-secondary border border-secondary hover:bg-background-hover disabled:opacity-50"
+                >
+                  <Plus className="size-3" />
+                  Add
+                </button>
+              </div>
+
+              {envRows.map((row, i) => (
+                <div key={i} className="mt-md flex items-center gap-md">
+                  <input
+                    aria-label={`Variable ${i + 1} name`}
+                    placeholder="KEY"
+                    value={row.key}
+                    onChange={(e) =>
+                      setEnvRows((rows) =>
+                        rows.map((r, j) => (j === i ? { ...r, key: e.target.value } : r))
+                      )
+                    }
+                    disabled={inFlight}
+                    className="w-2/5 h-9 px-xl rounded-md bg-background-secondary border border-border text-foreground text-sm font-mono placeholder:text-foreground-placeholder outline-none focus:border-brand disabled:opacity-50"
+                  />
+                  <input
+                    aria-label={`Variable ${i + 1} value`}
+                    placeholder="value"
+                    value={row.value}
+                    onChange={(e) =>
+                      setEnvRows((rows) =>
+                        rows.map((r, j) => (j === i ? { ...r, value: e.target.value } : r))
+                      )
+                    }
+                    disabled={inFlight}
+                    className="flex-1 h-9 px-xl rounded-md bg-background-secondary border border-border text-foreground text-sm font-mono placeholder:text-foreground-placeholder outline-none focus:border-brand disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove variable ${i + 1}`}
+                    disabled={inFlight}
+                    onClick={() => setEnvRows((rows) => rows.filter((_, j) => j !== i))}
+                    className="inline-flex items-center justify-center size-9 shrink-0 rounded-md border border-secondary text-foreground-tertiary hover:bg-background-hover hover:text-foreground disabled:opacity-50"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
 
             {state ? (
               <div className="mt-xl flex items-center gap-md text-sm text-foreground-secondary">

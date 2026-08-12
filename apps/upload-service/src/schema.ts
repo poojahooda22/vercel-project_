@@ -50,6 +50,13 @@ async function main() {
     }
   }
 
+  // Build-time environment variables from the upload dialog: a JSONB object of
+  // KEY -> value, injected only into that deployment's build. NULL means none.
+  await sql`
+    ALTER TABLE deployments
+      ADD COLUMN IF NOT EXISTS build_env JSONB
+  `;
+
   // The dashboard's main query, now scoped per user: that user's newest first.
   // An unindexed user_id filter on a growing table is a day-one ceiling.
   await sql`

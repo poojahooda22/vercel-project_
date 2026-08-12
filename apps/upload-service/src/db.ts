@@ -22,11 +22,12 @@ export type { Deployment, DeploymentState };
 export async function createDeployment(
   id: string,
   repoUrl: string,
-  userId: string
+  userId: string,
+  buildEnv: Record<string, string> | null
 ): Promise<boolean> {
   const rows = await sql`
-    INSERT INTO deployments (id, repo_url, state, user_id)
-    VALUES (${id}, ${repoUrl}, 'queued', ${userId})
+    INSERT INTO deployments (id, repo_url, state, user_id, build_env)
+    VALUES (${id}, ${repoUrl}, 'queued', ${userId}, ${buildEnv ? JSON.stringify(buildEnv) : null}::jsonb)
     ON CONFLICT (id) DO NOTHING
     RETURNING id
   `;

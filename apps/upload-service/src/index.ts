@@ -27,6 +27,36 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:3002";
 app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use(express.json());
 
+// Build-env limits. The values end up in a child process environment and a JSONB
+// column, so both the shape and the size are bounded here at the trust boundary,
+// not deep in the worker where a rejection can no longer become a clean 400.
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ENV_MAX_VARS = 32;
+const ENV_MAX_BYTES = 8 * 1024;
+// The worker grants the build a minimal allowlisted environment; letting a user
+// override PATH or HOME would redirect which binaries the build executes.
+const ENV_RESERVED = new Set([
+  "PATH", "HOME", "LANG", "SystemRoot", "ComSpec", "TEMP", "TMP", "APPDATA", "USERPROFILE",
+]);
+
+/** Returns the validated map, null for "none given", or a string describing the rejection. */
+function parseBuildEnv(raw: unknown): Record<string, string> | null | string {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) return "env must be an object of KEY: value";
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length === 0) return null;
+  if (entries.length > ENV_MAX_VARS) return `at most ${ENV_MAX_VARS} environment variables`;
+  const env: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (!ENV_KEY_RE.test(key) || key.length > 64) return `invalid variable name: ${key}`;
+    if (ENV_RESERVED.has(key)) return `${key} is reserved and cannot be set`;
+    if (typeof value !== "string") return `value of ${key} must be a string`;
+    env[key] = value;
+  }
+  if (JSON.stringify(env).length > ENV_MAX_BYTES) return "environment variables exceed 8KB";
+  return env;
+}
+
 app.post("/deploy", async (req, res) => {
   const userId = await requireUser(req, res);
   if (!userId) return;
@@ -37,11 +67,17 @@ app.post("/deploy", async (req, res) => {
     return;
   }
 
+  const buildEnv = parseBuildEnv(req.body?.env);
+  if (typeof buildEnv === "string") {
+    res.status(400).json({ error: buildEnv });
+    return;
+  }
+
   const id = generate();
 
   // Reserving the row is also the collision check — an id already in use returns
   // false here instead of overwriting someone else's deployment.
-  if (!(await createDeployment(id, repoUrl, userId))) {
+  if (!(await createDeployment(id, repoUrl, userId, buildEnv))) {
     res.status(409).json({ error: "id collision, retry" });
     return;
   }

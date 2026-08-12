@@ -28,4 +28,10 @@ export interface Deployment {
   screenshot_at: string | null;
   /** Owner. Nullable only for rows created before ownership existed. */
   user_id: string | null;
+  /**
+   * Build-time environment variables the deployer supplied in the upload
+   * dialog. Injected only into this deployment's build child process; null
+   * means none were given. Stored plaintext — do not echo back to clients.
+   */
+  build_env: Record<string, string> | null;
 }

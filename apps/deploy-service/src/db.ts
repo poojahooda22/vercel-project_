@@ -5,14 +5,19 @@ export const sql = neon(required("NEON_DB"));
 
 // queued -> building. The WHERE clause is the claim: if another worker already
 // took this deployment, no row matches and we skip it instead of double-building.
-export async function claimDeployment(id: string): Promise<boolean> {
+// The claim also carries back the deployer's build-time env, so the build needs
+// no second round-trip and cannot read a row it does not own.
+export async function claimDeployment(
+  id: string
+): Promise<{ claimed: boolean; buildEnv: Record<string, string> | null }> {
   const rows = await sql`
     UPDATE deployments
        SET state = 'building', building_at = now()
      WHERE id = ${id} AND state = 'queued'
-     RETURNING id
+     RETURNING id, build_env
   `;
-  return rows.length === 1;
+  if (rows.length !== 1) return { claimed: false, buildEnv: null };
+  return { claimed: true, buildEnv: (rows[0].build_env as Record<string, string> | null) ?? null };
 }
 
 // building -> deployed. Guarded so a reaper that already requeued this build

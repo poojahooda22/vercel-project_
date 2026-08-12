@@ -24,7 +24,8 @@ async function main() {
         console.log("popped id:", id);
 
         // queued -> building. Losing the claim means another worker owns it.
-        if (!(await claimDeployment(id))) {
+        const claim = await claimDeployment(id);
+        if (!claim.claimed) {
             console.log(`  skipped ${id}: not in 'queued' state`);
             continue;
         }
@@ -44,7 +45,7 @@ async function main() {
             let publishDir = plan.publishDir;
 
             if (plan.needsBuild) {
-                const exitCode = await buildProject(id);
+                const exitCode = await buildProject(id, claim.buildEnv);
                 if (exitCode !== 0) {
                     await markFailed(id, `build exited with code ${exitCode}`);
                     console.log(`  ${id} FAILED: exit code ${exitCode}`);

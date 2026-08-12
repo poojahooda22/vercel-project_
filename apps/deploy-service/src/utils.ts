@@ -48,11 +48,21 @@ function buildEnv(): NodeJS.ProcessEnv {
     return env;
 }
 
-export function buildProject(id: string): Promise<number> {
+export function buildProject(id: string, userEnv?: Record<string, string> | null): Promise<number> {
     return new Promise<number>((resolve) => {
+        // The deployer's build-time variables ride ON TOP of the allowlist, never
+        // in place of it. Keys that collide with the inherited set (PATH, HOME and
+        // friends) are dropped even though the upload service already rejects them:
+        // this side must stay safe against any caller, not just the current API.
+        const env = buildEnv();
+        for (const [key, value] of Object.entries(userEnv ?? {})) {
+            if (INHERITED_ENV_KEYS.includes(key) || key === "HOME") continue;
+            env[key] = value;
+        }
+
         //exec - node js inbuild process -> go to dist folder inside unique ID and run build
         const child = exec(`cd ${path.join(__dirname, `output/${id}`)} && npm install && npm run build`, {
-            env: buildEnv(),
+            env,
         })
 
         //logs good for debugging
