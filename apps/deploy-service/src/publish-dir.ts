@@ -23,6 +23,19 @@ export interface PublishPlan {
  */
 export function planBuild(repoDir: string): PublishPlan {
   if (!fs.existsSync(path.join(repoDir, "package.json"))) {
+    // The static path is for plain-HTML repos, and index.html at the root is
+    // what makes one servable. Without this check a repo that merely lacks a
+    // package.json — a backend, a monorepo, a docs repo — gets its entire tree
+    // uploaded and marked deployed, and the visitor's first request 404s: a
+    // green deployment nobody can open. Refusing here turns that silent
+    // publish-nothing into an honest failure on the card.
+    if (!fs.existsSync(path.join(repoDir, "index.html"))) {
+      throw new Error(
+        "no package.json and no index.html at the repo root — nothing servable. " +
+          "Deploy a static site (index.html) or a buildable frontend " +
+          "(npm run build emitting dist/, build/ or out/).",
+      );
+    }
     return {
       publishDir: repoDir,
       needsBuild: false,
