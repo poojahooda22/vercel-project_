@@ -12,6 +12,30 @@ export interface Deployment {
   finished_at: string | null;
   /** When the screenshot was captured; null means there isn't one. */
   screenshot_at: string | null;
+  /** "owner/name" when deployed through the GitHub App; null for a public URL. */
+  repo_full_name: string | null;
+  /** The commit that was built; null for rows from before this was recorded. */
+  git_sha: string | null;
+}
+
+/** What the upload modal needs to decide between the repo picker and a URL box. */
+export interface GithubStatus {
+  /** False when the server has no GitHub App registered: public URLs only. */
+  configured: boolean;
+  /** Where "Connect GitHub" sends the user. Absent when not configured. */
+  installUrl?: string;
+  /** Whether this account signed in with GitHub at least once. Needed to connect. */
+  githubLinked: boolean;
+  installations: { installation_id: number; account_login: string }[];
+  /** True when the user's installation exists on GitHub but is suspended there. */
+  suspended?: boolean;
+}
+
+export interface GithubRepoChoice {
+  installation_id: number;
+  full_name: string;
+  private: boolean;
+  default_branch: string;
 }
 
 // Served by the upload service rather than straight from the bucket: ids are short
@@ -77,6 +101,37 @@ export async function listDeployments(): Promise<Deployment[]> {
   const res = await fetch(`${UPLOAD_SERVICE}/deployments`, withSession);
   if (!res.ok) throw new Error(`deployments ${res.status}`);
   return (await res.json()).deployments ?? [];
+}
+
+export async function githubStatus(): Promise<GithubStatus> {
+  const res = await fetch(`${UPLOAD_SERVICE}/github/status`, withSession);
+  if (!res.ok) throw new Error(`github status ${res.status}`);
+  return res.json();
+}
+
+export interface GithubReposResponse {
+  repos: GithubRepoChoice[];
+  /** Installation ids still valid on GitHub after this call. */
+  installations: number[];
+  /** True when at least one installation had been removed on GitHub and was dropped. */
+  removed: boolean;
+  /** True when at least one installation is suspended on GitHub. */
+  suspended: boolean;
+}
+
+export async function githubRepos(): Promise<GithubReposResponse> {
+  const res = await fetch(`${UPLOAD_SERVICE}/github/repos`, withSession);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `github repos ${res.status}`);
+  }
+  const body = await res.json();
+  return {
+    repos: body.repos ?? [],
+    installations: body.installations ?? [],
+    removed: !!body.removed,
+    suspended: !!body.suspended,
+  };
 }
 
 export async function deleteDeployment(id: string): Promise<void> {

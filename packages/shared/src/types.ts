@@ -34,4 +34,10 @@ export interface Deployment {
    * means none were given. Stored plaintext — do not echo back to clients.
    */
   build_env: Record<string, string> | null;
+  /** GitHub App installation the source was read through; null for a public URL. */
+  installation_id: number | null;
+  /** "owner/name" when deployed through the App; null for a public URL. */
+  repo_full_name: string | null;
+  /** The commit that was built. Null only for rows created before this existed. */
+  git_sha: string | null;
 }

@@ -3,8 +3,8 @@
 #   docker build -f apps/upload-service/Dockerfile -t upload-service .
 # Context must be the repo root — the prune stage needs the root lockfile.
 #
-# Special requirement: the `git` BINARY at runtime. simple-git shells out to it,
-# so a slim node image without it fails at the first clone, not at build time.
+# Special requirement: the `git` BINARY at runtime. The clone module spawns it
+# directly, so a slim node image without it fails at the first clone, not at build time.
 
 FROM node:22-bookworm-slim AS pruner
 WORKDIR /repo
@@ -25,7 +25,7 @@ RUN npx turbo run build --filter=vercel-upload-service
 
 FROM node:22-bookworm-slim AS runner
 ENV NODE_ENV=production
-# git: required at RUNTIME by simple-git, not just to build.
+# git: required at RUNTIME by the clone module, not just to build.
 # ca-certificates: without it git cannot verify GitHub's TLS and every clone dies
 #   with "server certificate verification failed. CAfile: none". Node is unaffected
 #   because it bundles its own CA store, so R2 and Neon work and only git breaks —
@@ -44,8 +44,8 @@ COPY --from=builder --chown=app:app /repo/packages/shared/dist ./packages/shared
 COPY --from=builder --chown=app:app /repo/apps/upload-service/package.json ./apps/upload-service/package.json
 COPY --from=builder --chown=app:app /repo/apps/upload-service/dist ./apps/upload-service/dist
 
-# Clones land in dist/output/<id> relative to the compiled code, so this must be
-# writable by the app user — the COPY above already assigns ownership.
+# Clones land in a temporary directory under os.tmpdir() and are removed after
+# each deploy; the app user only needs its own tree readable.
 USER app
 WORKDIR /repo/apps/upload-service
 EXPOSE 3000

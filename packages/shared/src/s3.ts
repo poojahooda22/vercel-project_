@@ -1,4 +1,5 @@
 import { S3 } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { required } from "./env";
 
 /**
@@ -21,6 +22,14 @@ export function createS3Client(): S3 {
       accessKeyId: required("S3_ACCESS_KEY_ID"),
       secretAccessKey: required("S3_SECRET_ACCESS_KEY"),
     },
+    // The SDK's defaults are 0, i.e. no limit: a connection that black-holes after
+    // the body is sent would hold its caller — and a deploy's slot — forever.
+    // socketTimeout is idle-based: 60 s with no socket activity destroys the
+    // request and the call rejects, while a slow but live upload survives. In this
+    // handler version requestTimeout only logs a warning unless
+    // throwOnRequestTimeout is set, and as a whole-request ceiling it would kill a
+    // healthy large PUT — so it is not used.
+    requestHandler: new NodeHttpHandler({ connectionTimeout: 5_000, socketTimeout: 60_000 }),
   });
 }
 

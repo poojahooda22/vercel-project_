@@ -5,3 +5,17 @@ export { required } from "./env";
 export { createS3Client, s3Bucket } from "./s3";
 export { createRedisClient, BUILD_QUEUE, SCREENSHOT_QUEUE } from "./redis";
 export type { Deployment, DeploymentState } from "./types";
+export {
+  githubAppConfig,
+  installUrl,
+  appJwt,
+  getAppInstallation,
+  getUserInstallation,
+  getUserById,
+  getAuthenticatedUser,
+  createInstallationToken,
+  listInstallationRepos,
+  gitAuthConfig,
+  GithubApiError,
+} from "./github-app";
+export type { GithubAppConfig, GithubInstallation, GithubRepo } from "./github-app";

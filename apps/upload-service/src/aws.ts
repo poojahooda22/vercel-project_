@@ -61,14 +61,28 @@ export async function getObjectBytes(key: string): Promise<Buffer | null> {
 
 // fileName is the destination object name, e.g. "output/a1b2c/src/App.jsx".
 // localFilePath is where the file lives on this machine.
-export async function uploadFile(fileName: string, localFilePath: string): Promise<void> {
-  const { size } = fs.statSync(localFilePath);
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: fileName,
-      Body: fs.readFileSync(localFilePath),
-      ContentLength: size,
-    })
-  );
+//
+// Streamed, with the length declared up front (R2 needs it), so a deploy's memory
+// is a few chunks per in-flight upload rather than the whole tree: the previous
+// readFileSync read every file of the repository into Buffers before the first
+// PUT finished.
+export async function uploadFile(
+  fileName: string,
+  localFilePath: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const { size } = await fs.promises.stat(localFilePath);
+  // The handler pipes the stream into the request and, on abort or error, destroys
+  // only the request: the stream would stay open with its descriptor, and on Linux
+  // an unlinked-but-open file keeps its blocks. destroy() is idempotent after a
+  // normal end.
+  const body = fs.createReadStream(localFilePath);
+  try {
+    await s3.send(
+      new PutObjectCommand({ Bucket: BUCKET, Key: fileName, Body: body, ContentLength: size }),
+      { abortSignal: signal }
+    );
+  } finally {
+    body.destroy();
+  }
 }

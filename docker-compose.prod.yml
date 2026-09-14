@@ -74,10 +74,21 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
       NEON_DB: ${NEON_DB}
       REDIS_URL: redis://redis:6379
+      # GitHub App, for private repositories. All three or none: the service boots
+      # without them and then only accepts public URLs.
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY_BASE64: ${GITHUB_APP_PRIVATE_KEY_BASE64:-}
       FRONTEND_ORIGIN: https://app.${DOMAIN}
     depends_on:
       redis:
         condition: service_healthy
+    # Clones and uploads are streamed and bounded, but a ceiling still belongs
+    # here: one runaway request must not take the box down with it.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     restart: unless-stopped
 
   request-handler:

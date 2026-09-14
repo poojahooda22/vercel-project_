@@ -81,12 +81,23 @@ services:
       # Service name, not localhost: inside the network each container is its own
       # host, so "localhost" would point the client at itself.
       REDIS_URL: redis://redis:6379
+      # GitHub App, for private repositories. All three or none: the service boots
+      # without them and then only accepts public URLs.
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY_BASE64: ${GITHUB_APP_PRIVATE_KEY_BASE64:-}
       FRONTEND_ORIGIN: http://localhost
     depends_on:
       redis:
         # Not just "started". The upload service awaits publisher.connect() before
         # app.listen(), so a Redis that is up-but-not-ready means it never binds.
         condition: service_healthy
+    # Clones and uploads are streamed and bounded, but a ceiling still belongs
+    # here: one runaway request must not take the box down with it.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     restart: unless-stopped
 
   request-handler:

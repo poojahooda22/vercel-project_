@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Graphify knowledge-graph build output
 graphify-out/
+
+# Browser-tool snapshots written into the working copy during verification runs.
+.playwright-cli/

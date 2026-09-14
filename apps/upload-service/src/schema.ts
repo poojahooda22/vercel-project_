@@ -77,6 +77,33 @@ async function main() {
       WHERE state = 'building'
   `;
 
+  // GitHub App installations: which GitHub account's installation belongs to which
+  // platform user. A row is written only after the callback (or the discovery pass)
+  // proved the installation's GitHub account is the one the user signed in with.
+  // Deployments reference this by id but not by foreign key: an installation can be
+  // removed on GitHub after a deployment was made through it, and the deployment
+  // must survive that.
+  await sql`
+    CREATE TABLE IF NOT EXISTS github_installations (
+      installation_id      BIGINT PRIMARY KEY,
+      user_id              TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+      account_login        TEXT NOT NULL,
+      account_type         TEXT NOT NULL,
+      repository_selection TEXT NOT NULL,
+      created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS github_installations_user
+      ON github_installations (user_id)
+  `;
+
+  // Where a deployment's source came from, and which commit was built. NULL for
+  // public-URL deployments (first two) and for rows older than this column (third).
+  await sql`ALTER TABLE deployments ADD COLUMN IF NOT EXISTS installation_id BIGINT`;
+  await sql`ALTER TABLE deployments ADD COLUMN IF NOT EXISTS repo_full_name TEXT`;
+  await sql`ALTER TABLE deployments ADD COLUMN IF NOT EXISTS git_sha TEXT`;
+
   const rows = await sql`
     SELECT column_name, data_type FROM information_schema.columns
     WHERE table_name = 'deployments' ORDER BY ordinal_position

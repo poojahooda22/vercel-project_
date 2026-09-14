@@ -47,6 +47,27 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
+  // After installing the App, GitHub lands the browser on /?github=<outcome>. The
+  // parameter is consumed once and removed, so a reload does not repeat the notice.
+  const [githubNotice, setGithubNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get("github");
+    if (!outcome) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (outcome === "connected") {
+      setModalOpen(true);
+      return;
+    }
+    // Unknown values are not echoed back: the banner is first-party text, and a
+    // crafted link must not be able to put its own sentence there.
+    setGithubNotice(
+      Object.hasOwn(GITHUB_OUTCOME, outcome)
+        ? GITHUB_OUTCOME[outcome]
+        : "GitHub connect did not complete. Try connecting again."
+    );
+  }, []);
+
   // Keep polling only while something is still moving. A screenshot lands a few
   // seconds AFTER the state reaches 'deployed', so stopping at 'deployed' would
   // leave the card blank until a manual refresh — but the grace window has to be
@@ -124,6 +145,12 @@ export default function DashboardPage() {
             </div>
           ) : null}
 
+          {githubNotice ? (
+            <div className="mb-2xl p-xl rounded-md border border-error bg-background-error text-fg-error text-sm">
+              {githubNotice}
+            </div>
+          ) : null}
+
           {/* Skeletons rather than a spinner: they hold the same shape as the cards
               that replace them, so the layout does not jump when data lands. */}
           {loading ? (
@@ -171,7 +198,10 @@ export default function DashboardPage() {
 
       <UploadProjectModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(o) => {
+          setModalOpen(o);
+          if (o) setGithubNotice(null);
+        }}
         onDone={load}
         onDeployed={(id) => {
           setModalOpen(false);
@@ -194,6 +224,18 @@ export default function DashboardPage() {
     </DashboardShell>
   );
 }
+
+const GITHUB_OUTCOME: Record<string, string> = {
+  "link-required":
+    "Sign in with GitHub once before connecting repositories, so the installation can be tied to your GitHub account.",
+  unknown:
+    "GitHub did not recognise that installation for your account. Install the app on the GitHub account you signed in with, on your own account rather than an organization.",
+  unconfigured: "This server has no GitHub App registered, so only public repository URLs can be deployed.",
+  "github-error": "GitHub did not answer. Try connecting again in a minute.",
+  "server-error": "Something went wrong on our side while connecting GitHub. Try again in a minute.",
+  suspended: "That installation is suspended on GitHub, so it cannot be used yet.",
+  busy: "Too many connect attempts in a short time. Try again in a minute.",
+};
 
 function Placeholder({ title }: { title: string }) {
   return (
