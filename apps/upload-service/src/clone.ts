@@ -360,6 +360,8 @@ export async function walkTree(
 export interface CloneOptions {
   /** Runtime git config for the clone, e.g. the App token as an extra header. */
   config?: GitConfigPair[];
+  /** Branch to check out; the remote's default branch when omitted. */
+  branch?: string;
   /** Empty directory the child treats as its home; must exist. */
   home: string;
   /** Hard limit for the whole clone. */
@@ -383,7 +385,7 @@ export async function cloneRepo(
   cloneUrl: string,
   dest: string,
   opts: CloneOptions
-): Promise<{ sha: string }> {
+): Promise<{ sha: string; ref: string }> {
   const inactivityMs = opts.inactivityMs ?? 60_000;
   const env = gitEnv(opts.config, {
     home: opts.home,
@@ -393,8 +395,11 @@ export async function cloneRepo(
   });
   const caps = opts.caps;
   let diskCheckFailed = false;
+  // A branch name is validated by the caller's parsers; "--branch" takes it as a
+  // value, and "--" still ends option parsing before the URL.
+  const branchArgs = opts.branch ? ["--branch", opts.branch] : [];
   const clone = await runGit(
-    ["clone", "--depth", "1", "--single-branch", "--no-tags", "--progress", "--", cloneUrl, dest],
+    ["clone", "--depth", "1", "--single-branch", "--no-tags", "--progress", ...branchArgs, "--", cloneUrl, dest],
     {
       env,
       wallClockMs: opts.wallClockMs ?? 5 * 60_000,
@@ -454,7 +459,13 @@ export async function cloneRepo(
     }
     throw new CloneError(head.stderr);
   }
-  return { sha: head.stdout.trim() };
+  const branch = await runGit(["rev-parse", "--abbrev-ref", "HEAD"], {
+    env: gitEnv([], { home: opts.home }),
+    cwd: dest,
+    wallClockMs: 30_000,
+    inactivityMs: 30_000,
+  });
+  return { sha: head.stdout.trim(), ref: branch.code === 0 ? branch.stdout.trim() : opts.branch ?? "HEAD" };
 }
 
 const OWNER_OR_NAME = /^[A-Za-z0-9_.-]+$/;
@@ -497,7 +508,9 @@ export function canonicalGithubUrl(input: unknown): string | null {
   if (url.username || url.password) return null;
   const repo = parseRepoFullName(url.pathname.replace(/^\/+/, "").replace(/\/+$/, ""));
   if (!repo) return null;
-  return `https://github.com/${repo.owner}/${repo.name}`;
+  // GitHub logins and repository names are case-insensitive; one repository must
+  // map to one project, so the canonical form is lower-case.
+  return `https://github.com/${repo.owner.toLowerCase()}/${repo.name.toLowerCase()}`;
 }
 
 /** Object key for one cloned file: output/{id}/<path inside the repo>, with "/" separators. */

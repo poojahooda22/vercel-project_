@@ -27,9 +27,17 @@ export async function deletePrefix(prefix: string): Promise<number> {
     const keys = (page.Contents ?? []).map((o) => ({ Key: o.Key! })).filter((o) => o.Key);
 
     if (keys.length > 0) {
-      await s3.send(
+      const out = await s3.send(
         new DeleteObjectsCommand({ Bucket: BUCKET, Delete: { Objects: keys, Quiet: true } })
       );
+      // Quiet mode lists exactly the keys that were NOT deleted: a partial batch
+      // is an error to the caller, not a count that claims a clean sweep.
+      const errors = out.Errors ?? [];
+      if (errors.length > 0) {
+        throw new Error(
+          `${errors.length} of ${keys.length} object(s) under ${prefix} were not deleted: ${errors[0].Code ?? ""} ${errors[0].Message ?? ""}`
+        );
+      }
       deleted += keys.length;
     }
 

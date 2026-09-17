@@ -29,6 +29,7 @@ import {
   LABEL,
   githubRepos,
   githubStatus,
+  inProgress,
   type GithubRepoChoice,
   type State,
 } from "@/lib/deployments";
@@ -58,8 +59,9 @@ export function UploadProjectModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
-  /** Called once the build succeeds, so the page can open its detail view. */
-  onDeployed?: (id: string) => void;
+  /** Called once the build succeeds, with the project it belongs to, so the
+   *  page can open that project. */
+  onDeployed?: (id: string, projectId: string) => void;
 }) {
   const [source, setSource] = useState<Source>({ kind: "loading" });
   const [selected, setSelected] = useState<GithubRepoChoice | null>(null);
@@ -71,7 +73,11 @@ export function UploadProjectModal({
   // Build-time variables, kept as ordered rows so the inputs stay stable while
   // typing; folded into a KEY -> value object only at submit.
   const [envRows, setEnvRows] = useState<{ key: string; value: string }[]>([]);
-  const [id, setId] = useState<string | null>(null);
+  // The accepted deployment and its project, held together: the project id is
+  // only ever reported alongside a success for this same id, so the two must
+  // not be able to drift apart across renders.
+  const [job, setJob] = useState<{ id: string; projectId: string } | null>(null);
+  const id = job?.id ?? null;
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,7 +90,7 @@ export function UploadProjectModal({
     setUseUrl(false);
     setRepoUrl("");
     setEnvRows([]);
-    setId(null);
+    setJob(null);
     setState(null);
     setError(null);
   }
@@ -172,35 +178,53 @@ export function UploadProjectModal({
     onDeployedRef.current = onDeployed;
   });
 
-  // Poll until the deployment reaches a terminal state, then stop.
+  // Poll until the deployment reaches a terminal state, then stop. The page is
+  // told only when the state actually changes (it polls on its own while a
+  // build runs, so a call per tick would just double the traffic), and a
+  // transient fetch failure retries with a longer wait rather than ending the
+  // dialog's view of a build that is still running.
   useEffect(() => {
-    if (!id) return;
+    if (!job) return;
+    const { id: deploymentId, projectId } = job;
     let cancelled = false;
+    let lastStatus: string | null = null;
+    let failures = 0;
 
     async function poll() {
       try {
         // credentials: both /status and /deploy require a session now, and a
         // cross-origin fetch drops the cookie unless asked to send it.
-        const res = await fetch(`${UPLOAD_SERVICE}/status?id=${id}`, {
+        const res = await fetch(`${UPLOAD_SERVICE}/status?id=${deploymentId}`, {
           credentials: "include",
         });
         const body = await res.json();
         if (cancelled) return;
+        failures = 0;
         setState(body.status);
         if (body.error) setError(body.error.split("\n")[0]);
-        onDoneRef.current();
+        if (body.status !== lastStatus) {
+          lastStatus = body.status;
+          onDoneRef.current();
+        }
 
         if (body.status === "deployed") {
-          // Success needs no acknowledgement — hand straight to the detail view.
-          onDeployedRef.current?.(body.id);
+          // Success needs no acknowledgement — hand straight to the project.
+          onDeployedRef.current?.(body.id, projectId);
           return;
         }
-        // A failure keeps the modal open so the reason stays on screen.
-        if (body.status !== "failed") {
+        // A failure — or a cancellation, when a newer push superseded this
+        // build — keeps the modal open so the outcome stays on screen.
+        if (inProgress(body.status)) {
           timer.current = setTimeout(poll, 2000);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+        if (cancelled) return;
+        failures++;
+        if (failures < 5) {
+          timer.current = setTimeout(poll, 2000 * failures);
+          return;
+        }
+        setError(e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -209,7 +233,7 @@ export function UploadProjectModal({
       cancelled = true;
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [id]);
+  }, [job]);
 
   const picking = source.kind === "pick" && !useUrl;
 
@@ -243,7 +267,7 @@ export function UploadProjectModal({
       });
       const answer = await res.json();
       if (!res.ok) throw new Error(answer.error ?? `deploy failed (${res.status})`);
-      setId(answer.id);
+      setJob({ id: answer.id, projectId: answer.projectId });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -251,7 +275,7 @@ export function UploadProjectModal({
     }
   }
 
-  const done = state === "deployed" || state === "failed";
+  const done = state !== null && !inProgress(state);
   const inFlight = busy || (!!id && !done);
 
   // Reset when the modal is dismissed, so reopening starts clean.

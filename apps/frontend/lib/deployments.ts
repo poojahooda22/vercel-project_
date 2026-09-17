@@ -1,6 +1,10 @@
 import { UPLOAD_SERVICE } from "./config";
 
-export type State = "queued" | "building" | "deployed" | "failed";
+export type State = "queued" | "ingesting" | "building" | "deployed" | "failed" | "canceled";
+
+/** How a deployment came to exist: an upload from the dashboard, a push to the
+ *  repository, or the production pointer being moved back to an older build. */
+export type Trigger = "manual" | "webhook" | "rollback";
 
 export interface Deployment {
   id: string;
@@ -16,6 +20,11 @@ export interface Deployment {
   repo_full_name: string | null;
   /** The commit that was built; null for rows from before this was recorded. */
   git_sha: string | null;
+  /** The project this belongs to; null for rows from before projects existed. */
+  project_id: string | null;
+  /** The branch that was built; null when it was not recorded. */
+  git_ref: string | null;
+  trigger: Trigger | null;
 }
 
 /** What the upload modal needs to decide between the repo picker and a URL box. */
@@ -45,27 +54,67 @@ export function screenshotUrl(id: string): string {
 }
 
 // The UI is monochrome apart from status, where colour carries real meaning:
-// green = live, amber = working, red = broken.
+// green = live, amber = working, red = broken. Canceled is a step fainter than
+// queued: it never ran and never will, so it must not read as "waiting".
 export const DOT: Record<State, string> = {
   queued: "bg-fg-disabled",
+  ingesting: "bg-fg-warning animate-pulse",
   building: "bg-fg-warning animate-pulse",
   deployed: "bg-fg-success",
   failed: "bg-fg-error",
+  canceled: "bg-fg-disabled-subtle",
 };
 
 export const STATUS_TEXT: Record<State, string> = {
   queued: "text-foreground-tertiary",
+  ingesting: "text-fg-warning",
   building: "text-fg-warning",
   deployed: "text-fg-success",
   failed: "text-fg-error",
+  canceled: "text-foreground-placeholder",
 };
 
 export const LABEL: Record<State, string> = {
   queued: "Queued",
+  ingesting: "Preparing",
   building: "Building",
   deployed: "Ready",
   failed: "Failed",
+  canceled: "Canceled",
 };
+
+export const TRIGGER_LABEL: Record<Trigger, string> = {
+  manual: "Manual",
+  webhook: "Push",
+  rollback: "Rollback",
+};
+
+/** Whether the deployment can still change state on its own. Everything else
+ *  is final: a poller has no reason to ask again. */
+export function inProgress(state: State): boolean {
+  return state === "queued" || state === "ingesting" || state === "building";
+}
+
+/** How long after a build finishes a missing screenshot still counts as "coming". */
+export const CAPTURE_GRACE_MS = 3 * 60_000;
+
+/** True when the build succeeded but its screenshot has not landed yet and still
+ *  could. Bounded on purpose: a capture that never succeeds must not keep a
+ *  poller alive forever. */
+export function awaitingCapture(
+  d: Pick<Deployment, "state" | "screenshot_at" | "finished_at">
+): boolean {
+  if (d.state !== "deployed" || d.screenshot_at) return false;
+  const finished = d.finished_at ? new Date(d.finished_at).getTime() : 0;
+  return Date.now() - finished < CAPTURE_GRACE_MS;
+}
+
+/** Whether a poller still has a reason to ask about this deployment. */
+export function stillMoving(
+  d: Pick<Deployment, "state" | "screenshot_at" | "finished_at">
+): boolean {
+  return inProgress(d.state) || awaitingCapture(d);
+}
 
 export function repoName(url: string): string {
   return url.replace(/\/+$/, "").split("/").slice(-1)[0] || url;
@@ -74,6 +123,11 @@ export function repoName(url: string): string {
 export function repoOwner(url: string): string {
   const parts = url.replace(/\/+$/, "").split("/");
   return parts.length >= 2 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : url;
+}
+
+/** The seven characters git itself abbreviates to; null when no commit was recorded. */
+export function shortSha(sha: string | null): string | null {
+  return sha ? sha.slice(0, 7) : null;
 }
 
 export function timeAgo(iso: string): string {
@@ -95,7 +149,7 @@ export function buildDuration(d: Deployment): string | null {
 // credentials: "same-origin" — so without this the session cookie is silently
 // dropped and every call comes back 401. Harmless once Caddy puts both behind one
 // origin in production; required until then.
-const withSession: RequestInit = { credentials: "include" };
+export const withSession: RequestInit = { credentials: "include" };
 
 export async function listDeployments(): Promise<Deployment[]> {
   const res = await fetch(`${UPLOAD_SERVICE}/deployments`, withSession);

@@ -17,7 +17,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",
     "express": "^5.2.1",
-    "@vercel-clone/shared": "*"
+    "@vercel-clone/shared": "*",
+    "@neondatabase/serverless": "^1.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

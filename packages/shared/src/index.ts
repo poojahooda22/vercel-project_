@@ -4,7 +4,8 @@
 export { required } from "./env";
 export { createS3Client, s3Bucket } from "./s3";
 export { createRedisClient, BUILD_QUEUE, SCREENSHOT_QUEUE } from "./redis";
-export type { Deployment, DeploymentState } from "./types";
+export type { Deployment, DeploymentState, DeploymentTrigger, Project } from "./types";
+export { INGEST_QUEUE } from "./types";
 export {
   githubAppConfig,
   installUrl,

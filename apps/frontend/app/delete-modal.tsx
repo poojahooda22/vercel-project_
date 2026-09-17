@@ -12,16 +12,22 @@ import {
   ModalIconBadge,
   ModalTitle,
 } from "@/components/Modal";
+import { repoName, type Deployment } from "@/lib/deployments";
+import type { Project } from "@/lib/projects";
 
-export function DeleteProjectModal({
-  id,
-  name,
+/** What is about to be deleted. The modal derives its own wording from the
+ *  record, so a caller cannot pair the deployment text with a project. */
+export type DeleteTarget =
+  | { kind: "deployment"; deployment: Deployment }
+  | { kind: "project"; project: Project };
+
+export function DeleteModal({
+  target,
   open,
   onOpenChange,
   onConfirm,
 }: {
-  id: string;
-  name: string;
+  target: DeleteTarget;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => Promise<void>;
@@ -51,10 +57,13 @@ export function DeleteProjectModal({
             <Trash2 />
           </ModalIconBadge>
           <div className="flex flex-col gap-xs">
-            <ModalTitle>Delete deployment</ModalTitle>
+            <ModalTitle>
+              {target.kind === "project" ? "Delete project" : "Delete deployment"}
+            </ModalTitle>
             <ModalDescription>
-              Are you sure you want to delete {name} ({id})? Its files are removed from
-              storage and the URL stops working. This cannot be undone.
+              {target.kind === "project"
+                ? `Are you sure you want to delete ${target.project.name}? Every deployment it has is removed from storage and all of its URLs stop working, the production one included. This cannot be undone.`
+                : `Are you sure you want to delete ${repoName(target.deployment.repo_url)} (${target.deployment.id})? Its files are removed from storage and the URL stops working. This cannot be undone.`}
             </ModalDescription>
           </div>
         </ModalHeader>

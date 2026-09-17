@@ -16,10 +16,23 @@ export const REQUEST_HANDLER_HOST =
 // two can never legitimately disagree, so a second variable would only add a way to
 // build an image whose links are wrong.
 const HOST_IS_LOCAL = /^(localhost|127\.0\.0\.1)(:|$)/.test(REQUEST_HANDLER_HOST);
+const SCHEME = HOST_IS_LOCAL ? "http" : "https";
 
 // A deployment is served from its own subdomain root. The "/index.html" suffix
 // this used to carry was a workaround for the handler 404ing on "/", which it
 // no longer does.
 export function deployedUrl(id: string): string {
-  return `${HOST_IS_LOCAL ? "http" : "https"}://${id}.${REQUEST_HANDLER_HOST}/`;
+  return `${SCHEME}://${id}.${REQUEST_HANDLER_HOST}/`;
+}
+
+// A project's stable address. It is keyed by the slug rather than a deployment
+// id, so promote and rollback move what it serves without changing the URL.
+export function projectUrl(slug: string): string {
+  return `${SCHEME}://${slug}.${REQUEST_HANDLER_HOST}/`;
+}
+
+// What a URL looks like as a label: the scheme is implied by the link itself
+// and the trailing slash is noise next to a hostname.
+export function hostOf(url: string): string {
+  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }

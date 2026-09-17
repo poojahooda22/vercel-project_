@@ -3,38 +3,52 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BarChart3, ExternalLink, FileText, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { DashboardShell } from "./dashboard-shell";
+import { DeleteModal, type DeleteTarget } from "./delete-modal";
 import { DeploymentDetail } from "./deployment-detail";
 import { DeploymentsTable } from "./deployments-table";
-import { DeleteProjectModal } from "./delete-modal";
+import { ProjectDetail } from "./project-detail";
 import { UploadProjectModal } from "./upload-modal";
-import { deployedUrl } from "@/lib/config";
+import { hostOf, projectUrl } from "@/lib/config";
 import {
   DOT,
   LABEL,
   deleteDeployment,
+  inProgress,
   listDeployments,
-  repoName,
+  repoOwner,
+  stillMoving,
   timeAgo,
   type Deployment,
 } from "@/lib/deployments";
+import { deleteProject, listProjects, promoteDeployment, type Project } from "@/lib/projects";
 
 export default function DashboardPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  // Fetched alongside projects: the Deployments tab lists every deployment
+  // across projects, and its detail view reads from this list.
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  // Which project page is open, and which deployment the Deployments tab has
+  // opened. A project page opens its own rows itself.
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [nav, setNav] = useState("projects");
-  const [pendingDelete, setPendingDelete] = useState<Deployment | null>(null);
-  // Starts true: deployments arrive from a client-side fetch, so on the very first
+  const [pendingDelete, setPendingDelete] = useState<DeleteTarget | null>(null);
+  // Starts true: projects arrive from a client-side fetch, so on the very first
   // render the list is legitimately empty but UNKNOWN. Without this the page shows
-  // the "no deployments yet" empty state to someone who has six, until the request
+  // the "no projects yet" empty state to someone who has six, until the request
   // returns. Only the FIRST load flips it — the 3s poller must not re-show a
   // spinner over content that is already on screen.
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      setDeployments(await listDeployments());
+      // One failure fails the load as a whole: a fresh project list next to a
+      // stale deployments list would let the two tabs disagree.
+      const [p, d] = await Promise.all([listProjects(), listDeployments()]);
+      setProjects(p);
+      setDeployments(d);
       setLoadError(null);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
@@ -68,31 +82,61 @@ export default function DashboardPage() {
     );
   }, []);
 
-  // Keep polling only while something is still moving. A screenshot lands a few
-  // seconds AFTER the state reaches 'deployed', so stopping at 'deployed' would
-  // leave the card blank until a manual refresh — but the grace window has to be
-  // bounded, or a capture that never succeeds polls this page forever.
+  // Keep polling only while something is still moving. A project's `latest`
+  // says whether a build is running; the deployments list is checked too, since
+  // a screenshot lands a few seconds AFTER the state reaches 'deployed' and only
+  // those rows carry screenshot_at — bounded by the capture grace window, or a
+  // capture that never succeeds would poll this page forever.
   useEffect(() => {
-    const active = deployments.some((d) => {
-      if (d.state === "queued" || d.state === "building") return true;
-      if (d.state !== "deployed" || d.screenshot_at) return false;
-      const finished = d.finished_at ? new Date(d.finished_at).getTime() : 0;
-      return Date.now() - finished < 3 * 60_000;
-    });
+    // An open project page polls itself; two pollers for one screen would only
+    // double the traffic.
+    if (openProjectId) return;
+    const active =
+      projects.some((p) => p.latest !== null && inProgress(p.latest.state)) ||
+      deployments.some(stillMoving);
     if (!active) return;
     const t = setTimeout(load, 3000);
     return () => clearTimeout(t);
-  }, [deployments, load]);
+  }, [projects, deployments, openProjectId, load]);
 
   // The modal owns the confirmation; this only performs the delete and rethrows
   // so the modal can show the reason instead of closing on a failure.
-  async function remove(id: string) {
-    await deleteDeployment(id);
-    if (selectedId === id) setSelectedId(null);
+  async function remove(target: DeleteTarget) {
+    if (target.kind === "deployment") {
+      await deleteDeployment(target.deployment.id);
+      if (selectedId === target.deployment.id) setSelectedId(null);
+    } else {
+      await deleteProject(target.project.id);
+    }
     await load();
   }
 
+  function openProject(id: string) {
+    setSelectedId(null);
+    setOpenProjectId(id);
+  }
+
+  function closeProject() {
+    setOpenProjectId(null);
+    // This page stopped polling while the project page had the screen; other
+    // projects may have moved on meanwhile.
+    load();
+  }
+
   const selected = deployments.find((d) => d.id === selectedId) ?? null;
+  // The Deployments tab spans projects, so the context its detail view needs —
+  // the production pointer and the rollback candidate — is looked up here.
+  const selectedProject = selected
+    ? (projects.find((p) => p.id === selected.project_id) ?? null)
+    : null;
+  // The server computes the rollback target over the project's whole history; a
+  // page of twenty rows across projects could not.
+  const rollbackTo = selected && selectedProject ? selectedProject.rollback_to : null;
+  const productionIds = new Set(
+    projects
+      .map((p) => p.production_deployment_id)
+      .filter((id): id is string => id !== null)
+  );
 
   return (
     <DashboardShell
@@ -100,22 +144,51 @@ export default function DashboardPage() {
       onNavigate={(id) => {
         setNav(id);
         setSelectedId(null);
+        setOpenProjectId(null);
       }}
     >
-      {selected ? (
+      {openProjectId ? (
+        // Keyed so switching projects mounts a fresh page: no fetch from the
+        // previous project can land in the new one's state.
+        <ProjectDetail
+          key={openProjectId}
+          id={openProjectId}
+          onBack={closeProject}
+          onChanged={load}
+          onDeleted={closeProject}
+        />
+      ) : selected ? (
         <DeploymentDetail
           deployment={selected}
+          backLabel="All deployments"
+          production={selectedProject?.production_deployment_id === selected.id}
+          rollback={
+            selectedProject && rollbackTo
+              ? {
+                  toId: rollbackTo,
+                  run: async () => {
+                    await promoteDeployment(selectedProject.id, rollbackTo);
+                    await load();
+                  },
+                }
+              : undefined
+          }
           onBack={() => setSelectedId(null)}
-          onDelete={() => setPendingDelete(selected)}
+          onDelete={() => setPendingDelete({ kind: "deployment", deployment: selected })}
         />
       ) : nav === "deployments" ? (
-        <DeploymentsTable deployments={deployments} onOpen={setSelectedId} loading={loading} />
+        <DeploymentsTable
+          deployments={deployments}
+          onOpen={setSelectedId}
+          loading={loading}
+          productionIds={productionIds}
+        />
       ) : nav === "logs" || nav === "analytics" ? (
         <ChooseProject
           key={nav}
           title={nav === "logs" ? "Logs" : "Analytics"}
-          deployments={deployments}
-          onChoose={setSelectedId}
+          projects={projects}
+          onChoose={openProject}
         />
       ) : nav !== "projects" ? (
         <Placeholder title={nav} />
@@ -127,7 +200,7 @@ export default function DashboardPage() {
               <p className="text-sm text-foreground-tertiary mt-xs">
                 {loading
                   ? "Loading…"
-                  : `${deployments.length} deployment${deployments.length === 1 ? "" : "s"}`}
+                  : `${projects.length} project${projects.length === 1 ? "" : "s"}`}
               </p>
             </div>
             <button
@@ -170,9 +243,9 @@ export default function DashboardPage() {
           ) : null}
 
           {/* Only claim "none" once we have actually asked. */}
-          {!loading && !loadError && deployments.length === 0 ? (
+          {!loading && !loadError && projects.length === 0 ? (
             <div className="p-6xl rounded-lg border border-secondary text-center">
-              <p className="text-foreground-secondary text-sm">No deployments yet.</p>
+              <p className="text-foreground-secondary text-sm">No projects yet.</p>
               <button
                 onClick={() => setModalOpen(true)}
                 className="mt-xl inline-flex items-center gap-md h-10 px-2xl rounded-md bg-fg text-background text-sm font-medium"
@@ -184,12 +257,12 @@ export default function DashboardPage() {
           ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2xl">
-            {deployments.map((d) => (
+            {projects.map((p) => (
               <ProjectCard
-                key={d.id}
-                deployment={d}
-                onOpen={() => setSelectedId(d.id)}
-                onDelete={() => setPendingDelete(d)}
+                key={p.id}
+                project={p}
+                onOpen={() => openProject(p.id)}
+                onDelete={() => setPendingDelete({ kind: "project", project: p })}
               />
             ))}
           </div>
@@ -203,22 +276,21 @@ export default function DashboardPage() {
           if (o) setGithubNotice(null);
         }}
         onDone={load}
-        onDeployed={(id) => {
+        onDeployed={(_id, projectId) => {
           setModalOpen(false);
           setNav("projects");
-          setSelectedId(id);
+          openProject(projectId);
         }}
       />
 
       {pendingDelete ? (
-        <DeleteProjectModal
-          id={pendingDelete.id}
-          name={repoName(pendingDelete.repo_url)}
+        <DeleteModal
+          target={pendingDelete}
           open
           onOpenChange={(o) => {
             if (!o) setPendingDelete(null);
           }}
-          onConfirm={() => remove(pendingDelete.id)}
+          onConfirm={() => remove(pendingDelete)}
         />
       ) : null}
     </DashboardShell>
@@ -250,18 +322,21 @@ function Placeholder({ title }: { title: string }) {
  *  project is chosen the whole viewport is the chooser, not an empty layout. */
 function ChooseProject({
   title,
-  deployments,
+  projects,
   onChoose,
 }: {
   title: string;
-  deployments: Deployment[];
+  projects: Project[];
   onChoose: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const matches = q
-    ? deployments.filter(
-        (d) => repoName(d.repo_url).toLowerCase().includes(q) || d.id.toLowerCase().includes(q)
+    ? projects.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.repo_full_name ?? repoOwner(p.repo_url)).toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q)
       )
     : [];
 
@@ -285,16 +360,18 @@ function ChooseProject({
         {q ? (
           matches.length ? (
             <div className="mt-md py-xs rounded-md border border-secondary bg-background-secondary">
-              {matches.slice(0, 6).map((d) => (
+              {matches.slice(0, 6).map((p) => (
                 <button
-                  key={d.id}
-                  onClick={() => onChoose(d.id)}
+                  key={p.id}
+                  onClick={() => onChoose(p.id)}
                   className="w-full flex items-center justify-between gap-md px-xl py-md text-sm text-foreground hover:bg-background-hover"
                 >
-                  <span className="truncate">{repoName(d.repo_url)}</span>
+                  <span className="truncate">{p.name}</span>
                   <span className="flex items-center gap-md shrink-0 text-foreground-tertiary">
-                    <span className={`size-2 rounded-full ${DOT[d.state]}`} />
-                    {d.id}
+                    <span
+                      className={`size-2 rounded-full ${p.latest ? DOT[p.latest.state] : "bg-fg-disabled-subtle"}`}
+                    />
+                    {p.repo_full_name ?? repoOwner(p.repo_url)}
                   </span>
                 </button>
               ))}
@@ -311,16 +388,17 @@ function ChooseProject({
 }
 
 function ProjectCard({
-  deployment: d,
+  project: p,
   onOpen,
   onDelete,
 }: {
-  deployment: Deployment;
+  project: Project;
   onOpen: () => void;
   onDelete: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const latest = p.latest;
 
   // Close on any outside click, so the menu never strands itself open.
   useEffect(() => {
@@ -339,25 +417,28 @@ function ProjectCard({
     >
       <div className="flex items-start justify-between gap-md">
         <div className="min-w-0">
-          <h2 className="text-md font-medium text-foreground truncate">{repoName(d.repo_url)}</h2>
-          {d.state === "deployed" ? (
+          <h2 className="text-md font-medium text-foreground truncate">{p.name}</h2>
+          {p.production_deployment_id ? (
             <a
-              href={deployedUrl(d.id)}
+              href={projectUrl(p.slug)}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-xs text-sm text-foreground-tertiary hover:text-foreground truncate"
             >
-              {d.id}
+              {hostOf(projectUrl(p.slug))}
               <ExternalLink className="size-3 shrink-0" />
             </a>
           ) : (
-            <span className="text-sm text-foreground-tertiary">{d.id}</span>
+            <span className="text-sm text-foreground-tertiary">No production deployment yet</span>
           )}
         </div>
 
         <div ref={ref} className="flex items-center gap-md shrink-0">
-          <span className={`size-2 rounded-full ${DOT[d.state]}`} title={LABEL[d.state]} />
+          <span
+            className={`size-2 rounded-full ${latest ? DOT[latest.state] : "bg-fg-disabled-subtle"}`}
+            title={latest ? LABEL[latest.state] : "No deployments"}
+          />
           <button
             aria-label="Project actions"
             onClick={(e) => {
@@ -381,7 +462,7 @@ function ProjectCard({
                 }}
                 className="w-full text-left px-xl py-md text-sm text-foreground hover:bg-background-hover"
               >
-                View deployment
+                Open project
               </button>
               <button
                 onClick={() => {
@@ -398,14 +479,18 @@ function ProjectCard({
         </div>
       </div>
 
-      <p className="mt-xl text-sm text-foreground-tertiary truncate">{d.repo_url}</p>
+      <p className="mt-xl text-sm text-foreground-tertiary truncate">
+        {p.repo_full_name ?? repoOwner(p.repo_url)}
+      </p>
       <p className="mt-xs text-xs text-foreground-placeholder">
-        {LABEL[d.state]} · {timeAgo(d.created_at)}
+        {latest
+          ? `${LABEL[latest.state]} · ${timeAgo(latest.created_at)}`
+          : `No deployments · created ${timeAgo(p.created_at)}`}
       </p>
 
-      {d.state === "failed" && d.error_message ? (
+      {latest?.state === "failed" && latest.error_message ? (
         <p className="mt-md text-xs text-fg-error line-clamp-2">
-          {d.error_message.split("\n")[0]}
+          {latest.error_message.split("\n")[0]}
         </p>
       ) : null}
     </article>

@@ -17,11 +17,15 @@ export function DeploymentsTable({
   deployments,
   onOpen,
   loading = false,
+  productionIds,
 }: {
   deployments: Deployment[];
   onOpen: (id: string) => void;
   /** True until the first fetch resolves, so an unknown list is not called empty. */
   loading?: boolean;
+  /** Ids the projects' stable URLs currently serve; every other row is a
+   *  frozen build at its own address. */
+  productionIds?: ReadonlySet<string>;
 }) {
   return (
     <div className="px-5xl py-4xl">
@@ -87,10 +91,11 @@ export function DeploymentsTable({
                 ) : null}
               </span>
 
-              {/* Everything here is production: there is no preview concept yet. */}
-              <span className="hidden lg:inline-flex items-center h-6 px-md rounded-full border border-secondary text-xs text-foreground-secondary shrink-0">
-                Production
-              </span>
+              {productionIds?.has(d.id) ? (
+                <span className="inline-flex items-center h-6 px-md rounded-full border border-secondary text-xs text-foreground-secondary shrink-0">
+                  Production
+                </span>
+              ) : null}
 
               <span className="hidden md:block w-[90px] shrink-0 text-sm text-foreground-tertiary font-mono">
                 {d.id}

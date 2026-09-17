@@ -39,7 +39,20 @@ app.{$DOMAIN} {
 		reverse_proxy frontend:3002
 	}
 
+	# GitHub's push payloads run to 25 MB; nothing else on the API takes more than
+	# a few kilobytes. The limits are enforced here, before a byte reaches Node.
+	handle /api/webhooks/* {
+		request_body {
+			max_size 26MB
+		}
+		uri strip_prefix /api
+		reverse_proxy upload-service:3000
+	}
+
 	handle /api/* {
+		request_body {
+			max_size 1MB
+		}
 		uri strip_prefix /api
 		reverse_proxy upload-service:3000
 	}

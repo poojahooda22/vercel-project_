@@ -416,6 +416,107 @@ after Phase 14 is a Tier B platform: one region, N replicas, one Redis with a re
 builds, a CDN cache in front. That is where a Forge-class internal platform for static and SPA sites
 sits; the Tier C ceiling is documented in the research and not built.
 
+### Phase 9 as built (2026-09-14)
+
+Shipped: `projects` (one per user and repository, slug = production hostname label), the production
+pointer with promote and rollback, `POST /webhooks/github` with accept-and-enqueue, the ingest loop
+off the request path, `{slug}.domain` resolution in the request handler, and the project pages.
+Deferred from the plan above: `{slug}-git-{branch}` preview hostnames and `POST /hooks/{token}`
+(deploy hooks) — both are additive and nothing built here forecloses them. Decisions that differ
+from the sketch in G1/G2, each taken after a review round proved the sketch wrong:
+
+- **A push deploys only projects connected through the delivering installation.** Matching by
+  repository name alone let a stranger's URL-import receive another tenant's private pushes (branch,
+  commit SHAs, cadence) and let the repository's owner re-point a project they never owned. Projects
+  added by URL therefore never deploy on push; picking the repository under Connect GitHub attaches
+  the installation and turns pushes on.
+- **The delivery id is a claim, not a receipt.** `SET NX` for ten minutes before work, overwritten
+  with a day-long "done" only when every matching project was recorded, deleted on any failure —
+  GitHub never retries by itself and a manual redelivery reuses the id, so a push lost to a transient
+  error must be redeliverable. A delivery with a failed project answers 500 so GitHub's log shows it.
+- **Raw body, own parser, 25 MB.** GitHub's payload cap; the signature is checked over the bytes
+  before anything is parsed, and parser rejections are answered as JSON.
+- **An `ingesting` state.** The loop claims `queued → ingesting` before any work, every write on the
+  way is guarded on that claim, and the row returns to `queued` for a build worker once staged.
+  Newest-per-branch cancels only `queued` rows older than the kept one, drops them from both queues,
+  and sweeps what they staged. A database error while the popped id is in hand re-queues it.
+- **Rollback pauses automatic promotion** (`projects.auto_promote`), as Vercel does; promoting a
+  newer deployment resumes it. Without this a teammate's push silently undid a rollback.
+- **Reserved labels and disjoint namespaces.** `app`, `www`, `api`, the RFC 2142 names and a few
+  more can never be slugs; a deployment id is refused when it equals a slug, and a slug when it
+  equals an id.
+- **The database is not on the serving path's critical path.** The handler's slug cache is a bounded
+  LRU (10,000 entries) whose entries expire at a time fixed when written — a hit refreshes recency,
+  never freshness — so a pointer flip is visible within 15 s however busy the site is; "not a slug"
+  is cached for 60 s; labels are lower-cased and validated before any lookup; concurrent misses share
+  one lookup, which is aborted after 3 s; on a database failure the last known answer is served, else
+  the label is tried as a deployment id, either cached for 5 s, and a miss is a 503 rather than a
+  confident 404. `/healthz` answers only under a non-site hostname. Every response names the
+  deployment that answered it in `X-Deployment-Id`.
+- **The receiver refuses before it buffers.** The headers GitHub always sends (signature shape,
+  delivery id, event, content type) are checked before a byte of body is read; at most four bodies
+  are held at once; Caddy caps the webhook path at 26 MB and the rest of the API at 1 MB. Routing
+  is strict and case-sensitive, so the parser gate and the route agree on what the path is.
+- **A row's objects never outlive it.** The build worker treats a failed `building → deployed`
+  transition as "the row is gone" and sweeps what it just uploaded, so deleting a project or a
+  deployment mid-build leaves no rowless site; a project delete answers as soon as the rows are gone
+  and sweeps off the request path. The deployment a project serves as production cannot be deleted
+  (409): promote or roll back first.
+- **Pointer semantics come from the server.** The project payload carries when its production
+  deployment was created and which deployment a rollback restores, computed over the whole history,
+  so the dashboard's "promote" versus "roll back" wording and its rollback button do not depend on
+  the page of rows the client happens to hold.
+- **Backlog is bounded per tenant before it is bounded per platform:** ten queued-or-ingesting
+  deployments per account (429 from the dashboard, a failed-and-released delivery from a push), then
+  the global queue depth. A manual deploy supersedes the project's older queued rows like a push
+  does. There is no per-project push rate budget: newest-per-branch already keeps one queued row per
+  project, and dropping a push would leave the tip undeployed.
+- **Mutating routes refuse cross-site browsers.** A request carrying an `Origin` other than the
+  dashboard's is answered 403, so a tenant page on a sibling hostname cannot deploy, promote or delete
+  with the visitor's session. Uninstalling the App detaches its projects, so the page says pushes are
+  off instead of silently never deploying.
+- **Production is the repository's default branch, as last seen.** A manual deploy clones the
+  remote's HEAD; a push deploys only when it is to `repository.default_branch`; both update the
+  project's recorded branch, so renaming `master` to `main` on GitHub keeps deploying instead of
+  freezing the first name forever. Pushes to other branches are ignored (previews are deferred), and
+  choosing a non-default branch by hand is a later feature.
+- **The worker cannot be killed by one object.** The download awaits every fetch and write, so a
+  missing or unreadable object fails that one build with a fixed sentence instead of crashing the
+  shared worker as an unhandled rejection; every build's local tree is removed afterwards whatever
+  the outcome, and leftovers are swept at boot; promotion and the screenshot run after the row is
+  committed and cannot mark a deployed build failed.
+- **The pointer is the database's invariant.** `projects.production_deployment_id` is uniquely
+  indexed (so the FK's delete action never scans the table) and is a composite foreign key on
+  `(project id, deployment id)`, so a project can only ever point at its own deployment. Deleting a
+  deployment locks its project row first, so a promote committing at the same instant is waited for
+  rather than overtaken. A storage sweep that only partly succeeded is reported as such, never as a
+  clean count.
+
+Still open, recorded here rather than fixed: the request handler holds the full database credential
+for one `SELECT` (a read-only role, or the pointer published to Redis at promote time, is the fix);
+the dashboard's session cookie is not `__Host-`-prefixed, so a tenant site on a sibling hostname can
+set a cookie the dashboard receives (a separate apex for the dashboard is the real fix); the reaper
+for rows stuck in `queued`/`ingesting` after a crash is Phase 8's; a webhook deployment clones the
+branch tip at clone time and records the commit it actually built, rather than fetching the pushed
+commit by SHA, so two pushes seconds apart can both build the later commit; "newest" is the row's
+creation time, not the push's, so two deliveries for one branch processed concurrently could in
+principle be ordered wrongly (GitHub delivers a hook's events serially in practice; the payload's
+`before` field would let a lineage check replace the timestamp); `repository.id` is not stored, so a
+renamed repository stops matching pushes until it is picked again; the list routes return the newest
+50 projects / 50 deployments per project / 20 deployments per account with no cursor, so a long
+history is truncated on the dashboard; the per-account backlog bound is a count-then-insert, so
+concurrent requests can overshoot it by the number in flight (bounded by the deploy rate budget);
+an expired pointer entry is served once more while it refreshes, so a flip is visible within 15 s
+plus one request rather than exactly 15 s.
+
+**What this platform does not run: servers.** A build must produce static files. A Next.js
+application with API routes, server components that fetch at request time, or preview mode (the
+Prismic helpers `api/preview`, `api/exit-preview`, `api/revalidate` are the usual case) is refused
+with a sentence at build time, because nothing here would run `next start`. Two ways out: make the
+site static (`output: "export"` in `next.config.js`, remove the API routes, give dynamic pages a
+`generateStaticParams`, and redeploy on content changes), or build G9 — a runtime tier that runs a
+process per project and proxies its hostname to it — which is a phase of its own.
+
 ---
 
 ## 5. Pre-mortem — six months out, this failed. Why?

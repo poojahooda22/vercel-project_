@@ -2,16 +2,7 @@
 
 import { useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
-import { screenshotUrl, type Deployment } from "@/lib/deployments";
-
-/** How long after a build finishes we still describe a missing shot as "coming". */
-const CAPTURE_GRACE_MS = 3 * 60_000;
-
-function awaitingCapture(d: Deployment): boolean {
-  if (d.state !== "deployed" || d.screenshot_at) return false;
-  const finished = d.finished_at ? new Date(d.finished_at).getTime() : 0;
-  return Date.now() - finished < CAPTURE_GRACE_MS;
-}
+import { awaitingCapture, screenshotUrl, type Deployment } from "@/lib/deployments";
 
 /**
  * The deployment's preview image.
